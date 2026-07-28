@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     static const uint8_t cff = 0xFF;
     uint8_t d;
     unsigned swap;
-#ifdef RELOC_6502
+#if defined(RELOC_6502) ||  defined(RELOC_680X)
     uint8_t ext[4];
     uint16_t rbase;
 #endif
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     }
     swap = fix_header();
     raddr = hdr.a_text + hdr.a_data;		/* End of data */
-#ifdef RELOC_6502
+#if defined(RELOC_6502) || defined(RELOC_680X)
     rbase = raddr;
 #endif
     if (lseek(efd, raddr, SEEK_SET) < 0) {
@@ -119,6 +119,7 @@ int main(int argc, char *argv[])
         hdr.a_text, hdr.a_data, hdr.a_bss, raddr);
     /* TODO: buffer output */
     if (hdr.a_zp) {
+        printf("ZP relocations %x bytes\n", hdr.a_zp);
         laddr = 0x0000;
         while(read(rfd, ar, 3) == 3) {
             if (ar[0])
@@ -193,17 +194,25 @@ int main(int argc, char *argv[])
         exit(1);
     }
     printf("Header adjusted to data %x bss %x\n", hdr.a_data,hdr.a_bss);
-#ifdef RELOC_6502
+#if defined(RELOC_6502) || defined(RELOC_680X)
     /* For the 6502 we have to deal with the relocations being done by the OS
        due to the limits of the CPU */
+    /* 680x we use the same approach but from user */
     if (read(efd, ext, 4) != 4) {
-        fprintf(stderr, "%s: unable to read 6502 header.\n", argv[2]);
+        fprintf(stderr, "%s: unable to read ext header.\n", argv[2]);
         exit(1);
     }
+    /* Endianness matters */
+    printf("rbase set to %04x\n", rbase);
+#ifdef RELOC_6502
     ext[2] = rbase & 0xFF;
     ext[3] = rbase >> 8;
+#else
+    ext[2] = rbase >> 8;
+    ext[3] = rbase & 0xFF;
+#endif
     if (lseek(efd, -4, SEEK_CUR) < 0 || write(efd, ext, 4) != 4) {
-        fprintf(stderr, "%s: unable to update 6502 header.\n", argv[2]);
+        fprintf(stderr, "%s: unable to update ext header.\n", argv[2]);
         exit(1);
     }
 #endif
