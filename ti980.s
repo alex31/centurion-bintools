@@ -141,7 +141,7 @@ bar:
 	rex	x,b
 	rmo	x,b
 	api	1,foo
-	ati	3,11,foo
+	ati	11,3,foo
 ;	need to figure out a sane syntax
 ;	rds	7,x
 ;	wds	7,x
