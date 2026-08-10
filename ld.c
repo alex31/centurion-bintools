@@ -977,6 +977,10 @@ static void record_reloc(struct object *o, unsigned high, unsigned size, unsigne
 		/* High halves of a ZP reloc are ignored */
 		if (high)
 			return;
+		/* Word sized ZP relocs are ZP references as normal addresses
+		   which on a big endian machine means the last byte */
+		if (o->oh->o_flags & OF_BIGENDIAN)
+			addr += size - 1;
 		fputc(0, relocf);
 		fputc(addr >> 8, relocf);
 		fputc((addr & 0xFF), relocf);
