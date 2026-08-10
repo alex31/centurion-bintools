@@ -204,7 +204,7 @@ unsigned exchange_pair(void)
 		qerr(INVALID_FORM);
 	return (register_to_nybble(s) << 4) | register_to_nybble(d);
 }
-	
+
 
 void index_required(ADDR *ap)
 {
@@ -873,8 +873,8 @@ loop:
 			outab(opcode + 0x60);
 		else
 			aerr(INVALID_FORM);
-		write_data(&a1, 2);
-		break;				
+		write_data(&a1, 1);
+		break;
 	case TJSR:
 		/* JSR is stuffed into odd spots */
 		getaddr_r(&a1);

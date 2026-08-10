@@ -483,6 +483,7 @@ install: all
 	cp reloc $(CCROOT)/bin/relocz80
 	cp reloc6502 $(CCROOT)/bin/reloc6502
 	cp reloc680x $(CCROOT)/bin/reloc6800
+	cp reloc680x $(CCROOT)/bin/reloc6809
 	cp template $(CCROOT)/bin/template
 	cp Tools/Flex/binify $(CCROOT)/bin/flex-binify
 	cp Tools/Flex/flexfs $(CCROOT)/bin/flex-fs
