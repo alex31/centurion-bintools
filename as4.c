@@ -143,12 +143,12 @@ static void outaddr(addr_t a, unsigned s)
 #ifdef TARGET_BIGENDIAN
 	unsigned shift = 8 * (s - 1);
 	while(s--) {
-		outab(a >> shift);
+		outabyte(a >> shift);
 		a <<= 8;
 	}
 #else
 	while(s--) {
-		outab(a);
+		outabyte(a);
 		a >>= 8;
 	}
 #endif
@@ -160,12 +160,12 @@ static void outqaddr(addr_t a, unsigned s)
 #ifdef TARGET_BIGENDIAN
 	unsigned shift = 8 * (s - 1);
 	while(s--) {
-		outabyte(a >> shift);
+		outab(a >> shift);
 		a <<= 8;
 	}
 #else
 	while(s--) {
-		outabyte(a);
+		outab(a);
 		a >>= 8;
 	}
 #endif
@@ -254,7 +254,7 @@ static void outreloc(register ADDR *a, int bytes)
 			outabyte(n >> 8);
 #endif
 		} else
-			outqaddr(n, bytes);
+			outaddr(n, bytes);	/* Check qaddr ? */
 	} else {
 		/* Relocatable constant. This may change and thus need
 		   to be padded */
@@ -447,7 +447,7 @@ void outrel(ADDR *a, unsigned len)
 		if (rel_check && (av & ~mask))
 			err('o', CONSTANT_RANGE);
 		av &= mask;
-		outaddr(av, len);
+		outqaddr(av, len);
 	} else {
 		outbyte(REL_ESC);
 		outbyte(REL_PCR);
