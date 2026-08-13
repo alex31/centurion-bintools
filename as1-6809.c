@@ -573,32 +573,22 @@ void write_data(ADDR *ap, unsigned size)
 		outraw(ap);
 		return;
 	}
-	/* Pre/post must match size */
 	if (t == TPOST1) {
-		if (size == 2)
-			qerr(INVALID_FORM);
 		outab(0x80 | r);
 		return;
 	}
 	if (t == TPOST2) {
-		if (size == 1)
-			qerr(INVALID_FORM);
 		outab(0x81 | r);
 		return;
 	}
 	if (t == TPRE1) {
-		if (size == 2)
-			qerr(INVALID_FORM);
 		outab(0x82 | r);
 		return;
 	}
 	if (t == TPRE2) {
-		if (size == 1)
-			qerr(INVALID_FORM);
 		outab(0x83 | r);
 		return;
 	}
-	/* Indirect pre/post always word and was checked in getaddr_r */
 	if (t == (TMINDIR|TPOST2)) {
 		outab(0x91 | r);
 		return;
