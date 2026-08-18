@@ -144,6 +144,10 @@ void expr1(ADDR *ap, int lpri, int paren)
 		opri = ADDPRI;
 		if (c=='*' || c=='/')
 			opri = MULPRI;
+		else if (c=='&')
+			opri = ANDPRI;
+		else if (c=='|')
+			opri = ORPRI;
 		if (opri <= lpri)
 			break;
 		expr1(&right, opri, paren);
