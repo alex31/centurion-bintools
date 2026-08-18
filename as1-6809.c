@@ -422,10 +422,21 @@ void getaddr(ADDR *ap)
 
 unsigned is_indexed(ADDR *ap)
 {
-	unsigned ta = ap->a_type & (TMADDR | TMINDIR);
-	if (ta != TINDEX && ta != TINDEXA && ta != TINDEXB && ta != TINDEXD)
-		return 0;
-	return 1;
+	unsigned ta = ap->a_type & TMADDR;
+	switch (ta) {
+	case TINDEX:
+	case TPOST1:
+	case TPOST2:
+	case TPRE1:
+	case TPRE2:
+	case TINDEXA:
+	case TINDEXB:
+	case TINDEXD:
+		return 1;
+	default:
+		break;
+	}
+	return 0;
 }
 
 unsigned is_postbyte(ADDR *ap)
