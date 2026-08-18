@@ -131,7 +131,7 @@ void expr1(ADDR *ap, int lpri, int paren)
 	ADDR right;
 
 	expr2(ap);
-	while ((c=getnb())=='+' || c=='-' || c=='*' || c=='/') {
+	while ((c=getnb())=='+' || c=='-' || c=='*' || c=='/' || c=='&' ||c=='|') {
 		c2 = getnb();
 		/* Pass unary postifx back to the caller as some assembly
 		    syntaxes require we can handle stuff like (X-) for
@@ -177,6 +177,19 @@ void expr1(ADDR *ap, int lpri, int paren)
 				err('z', DIVIDE_BY_ZERO);
 			else
 				ap->a_value /= right.a_value;
+			break;
+		case '&':
+			istuser(ap);
+			istuser(&right);
+			chksegment(ap, &right, '&');
+			ap->a_value &= right.a_value;
+			break;
+		case '|':
+			istuser(ap);
+			istuser(&right);
+			chksegment(ap, &right, '|');
+			ap->a_value |= right.a_value;
+			break;
 		}
 	}
 	unget(c);
