@@ -268,6 +268,10 @@ static void outreloc(register ADDR *a, int bytes)
 			err('o', CONSTANT_RANGE);
 		n &= mask;
 
+		/* Needs a better error code or behaviour here */
+		if (bytes != 1 && (f & (A_LOW|A_HIGH)))
+			qerr(CONSTANT_RANGE);
+
 		/* FIXME: need to deal with 24/32bit sizes wit HIGH */
 		if (f & A_HIGH) {
 			outab2(n >> 8);
