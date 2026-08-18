@@ -2668,9 +2668,12 @@ typedef	uint16_t	VALUE;		/* For symbol values */
  */
 
 #define	LOPRI	0
-#define	ADDPRI	1
-#define	MULPRI	2
-#define	HIPRI	3
+#define	ORPRI	1
+#define	EORPRI	2
+#define	ANDPRI	3
+#define	ADDPRI	4
+#define	MULPRI	5
+#define	HIPRI	6
 
 #ifndef SEGMENT_LIMIT
 #define SEGMENT_LIMIT	0xFFFF
