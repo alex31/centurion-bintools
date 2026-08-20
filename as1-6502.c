@@ -478,7 +478,7 @@ loop:
 		getaddr(&a1);
 		disp = a1.a_value - dot[segment] - 2;
 		outab(opcode);
-		if (segment_incompatible(&a1) || disp < -128 || disp > 127)
+		if (pass == 3 && (segment_incompatible(&a1) || disp < -128 || disp > 127))
 			aerr(BRA_RANGE);
 		outab(disp);
 		break;
@@ -515,8 +515,10 @@ loop:
 		} else {
 			outab(opcode);
 			/* Should never happen */
-			if (disp < -128 || disp > 127)
+			if (disp < -128 || disp > 127) {
+				printf(";BAD rel disp %d\n", disp);
 				aerr(BRA_RANGE);
+			}
 			outab(disp);
 		}
 		break;
@@ -552,6 +554,7 @@ loop:
 		if (a1.a_segment != segment)
 			aerr(BRA_RANGE);
 		/* Check this is right TODO */
+		/* FIXME: we now support PCREL */
 		disp = a1.a_value-dot[segment]-3;
 		outab(opcode);
 		outab(disp);
