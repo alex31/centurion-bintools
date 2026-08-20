@@ -91,7 +91,7 @@ static void expr1_zp(ADDR *ap)
 	expr1(ap, LOPRI, 0);
 	make_zp(ap);
 }
-	
+
 /* Get an expression that might be zero page */
 static void expr1_maybe_zp(ADDR *ap)
 {
@@ -102,7 +102,7 @@ static void expr1_maybe_zp(ADDR *ap)
 	if (c == '@')
 		make_zp(ap);
 }
-	
+
 /*
  * Read in an address
  * descriptor, and fill in
@@ -123,10 +123,10 @@ void getaddr(ADDR *ap)
 	ap->a_flags = 0;
 	ap->a_sym = NULL;
 	ap->a_segment = 0;
-	
+
 	c = getnb();
 
-	/* #foo */	
+	/* #foo */
 	if (c == '#') {
 		c = getnb();
 		if (c == '<')
@@ -179,9 +179,9 @@ void getaddr(ADDR *ap)
 	unget(c);
 
 	expr1_maybe_zp(ap);
-	
+
 	c = getnb();
-	
+
 	/* foo,[x|y] */
 	if (c == ',') {
 		/* FIXME: if we meet 35,x how do we know whether its ZP or
@@ -189,7 +189,7 @@ void getaddr(ADDR *ap)
 		   either if the value comes from a symbol because we might
 		   learn the value on phase 1 and then we'd change size and
 		   get a phase error.
-		   
+
 		   Worse yet there are cases where abs,y is valid but not zp
 		   (class 1 instructions), and where zp,y is but not abs,y (stx) */
 
@@ -225,7 +225,7 @@ void getaddr(ADDR *ap)
 	.byte 1,2,3,4
    as well as
    	.byte #1,#2,... etc
-   	
+
    to avoid confusion with the comma in addressing modes */
 
 void getaddr_const(ADDR *ap)
@@ -237,10 +237,10 @@ void getaddr_const(ADDR *ap)
 	ap->a_flags = 0;
 	ap->a_sym = NULL;
 	ap->a_segment = 0;
-	
+
 	c = getnb();
 
-	/* #foo */	
+	/* #foo */
 	if (c == '#')
 		c = getnb();
 	if (c == '<')
@@ -805,7 +805,7 @@ loop:
 			aerr(BADMODE);
 		if (reg == 0 && idx_size == 2)
 			outraw(&a1);
-		else if (reg < 2)
+		else if (reg < 2 || reg == 5)
 			outrab(&a1);
 		else if (reg == 3 || reg == 7)
 			outraw(&a1);
