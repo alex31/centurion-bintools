@@ -554,7 +554,7 @@ static void print_symbol(register struct symbol *s, FILE *fp)
 	if (s->type & S_UNKNOWN)
 		c = 'U';
 	else {
-		c = "ACDBZXSLsb"[s->type & S_SEGMENT];
+		c = "ACDBZXSL8b"[s->type & S_SEGMENT];
 		if (s->type & S_PUBLIC)
 			c = toupper(c);
 	}
@@ -811,8 +811,9 @@ static void set_segment_bases(void)
 		/* ZP if any is assumed to be set on input */
 		/* FIXME: check the literals fit .. make this a more sensible
 		   overlap check loop ? */
-		if (base[3] < base[2] || base[3] + size[3] < base[3])
-			error("image too large");
+		if (ldmode == LD_FUZIX)
+			if (base[3] < base[2] || base[3] + size[3] < base[3])
+				error("image too large");
 		/* Whoopee it fits */
 		/* Insert the linker symbols */
 		/* FIXME: symbols for all OSEG segments */
