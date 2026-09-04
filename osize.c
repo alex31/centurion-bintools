@@ -15,8 +15,6 @@
 
 static char *arg0;
 
-static char segname[] = "ATDB???????????U";
-
 static int do_osize(FILE *fp, const char *name)
 {
     int i;
@@ -27,8 +25,8 @@ static int do_osize(FILE *fp, const char *name)
             fprintf(stderr, "%s: %s: not a valid object file.\n", arg0, name);
             return 1;
     }
-    for(i = 0; i < 8; i++)
-        printf("%s: %c %4x\n", name, segname[i], oh.o_size[i]);
+    for(i = 0; i < OSEG; i++)
+        printf("%s: %c %4x\n", name, SEGNAME[i], oh.o_size[i]);
     return 0;
 }
 
