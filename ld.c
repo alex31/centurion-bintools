@@ -73,6 +73,8 @@ typedef int32_t		addrdiff_t;
 typedef int16_t		addrdiff_t;
 #endif
 
+static char segnames[] = SEGNAME;
+
 static char *arg0;			/* Command name */
 static struct object *processing;	/* Object being processed */
 static const char *libentry;		/* Library entry name if relevant */
@@ -90,6 +92,7 @@ static uint_fast8_t ldmode = LD_FUZIX;	/* Operating mode */
 static uint_fast8_t rawstream;		/* Outputting raw or quoted ? */
 
 static uint_fast8_t split_id;		/* True if code and data both zero based */
+static uint_fast8_t overlays;		/* True if using overlays */
 static unsigned arch;			/* Architecture */
 static uint16_t arch_flags;		/* Architecture specific flags */
 static uint_fast8_t verbose;		/* Verbose reporting */
@@ -554,7 +557,7 @@ static void print_symbol(register struct symbol *s, FILE *fp)
 	if (s->type & S_UNKNOWN)
 		c = 'U';
 	else {
-		c = "ACDBZXSL8b"[s->type & S_SEGMENT];
+		c = segnames[s->type & S_SEGMENT];
 		if (s->type & S_PUBLIC)
 			c = toupper(c);
 	}
@@ -736,7 +739,6 @@ static void append_segment(int a, int b)
 		error("image too large");
 }
 
-static char segnames[] = "CDBZXSLsb";
 
 static void order_segments(void)
 {
@@ -784,7 +786,7 @@ static void set_segment_bases(void)
 			size[i] += o->oh->o_size[i];
 			if (verbose)
 				printf("\t%c : %04X  %04X\n",
-					"ACDBZXSLsb??????"[i], o->oh->o_size[i],
+					segnames[i], o->oh->o_size[i],
 						size[i]);
 			if (size[i] < o->oh->o_size[i])
 				error("segment too large");
@@ -795,7 +797,7 @@ static void set_segment_bases(void)
 
 	if (verbose) {
 		for (i = 1; i < 7; i++)
-			printf("Segment %c Size %04X\n", "ACDBZXc"[i], size[i]);
+			printf("Segment %c Size %04X\n", segnames[i], size[i]);
 	}
 	/* We now know where to put the binary */
 	if (ldmode == LD_RELOC) {
@@ -964,9 +966,12 @@ static addr_t target_get(struct object *o, uint16_t size)
 #endif
 }
 
-static void record_reloc(struct object *o, unsigned high, unsigned size, unsigned seg, addr_t addr)
+static void record_reloc(struct object *o, unsigned high, unsigned size, unsigned seg, addr_t addr, unsigned segment)
 {
 	if (!relocf)
+		return;
+
+	if (ldmode != LD_FUZIX && !overlays)
 		return;
 
 	/* Absolutes are .. absolute */
@@ -1004,6 +1009,13 @@ static void record_reloc(struct object *o, unsigned high, unsigned size, unsigne
 	fputc((addr >> 8), relocf);
 	fputc(addr, relocf);
 #else
+	/* For overlays we record relocations in full as
+		src eg, dst seg, addr.16 */
+	if (overlays) {
+		fputc(2, relocf);
+		fputc(segment, relocf);
+		fputc(seg, relocf);
+	}
 	fputc(1, relocf);
 	fputc((addr >> 8), relocf);
 	fputc(addr, relocf);
@@ -1013,7 +1025,8 @@ static void record_reloc(struct object *o, unsigned high, unsigned size, unsigne
 static unsigned is_code(unsigned seg)
 {
 	/* TODO: when we add banking/overlays this will need to change */
-	if (seg == CODE || seg == DISCARD || seg == COMMON)
+	if (seg == CODE || seg == DISCARD || seg == COMMON || (seg >= OVERLAY &&
+	seg < PCREL))
 		return 1;
 	return 0;
 }
@@ -1100,6 +1113,7 @@ static void relocate_stream(struct object *o, int segment, FILE * op)
 				fputc(REL_ESC, op);
 				fputc(tmp, op);
 				io_readb(&tmp);
+				/* FIXME: quote ? */
 				fputc(tmp, op);
 				continue;
 			}
@@ -1225,8 +1239,7 @@ static void relocate_stream(struct object *o, int segment, FILE * op)
 					size = 1;
 				}
 				target_put(o, r, size, op);
-				if (ldmode == LD_FUZIX)
-					record_reloc(o, high, size, seg, dot);
+				record_reloc(o, high, size, seg, dot, segment);
 				dot += size;
 				continue;
 			}
@@ -1338,8 +1351,8 @@ static void relocate_stream(struct object *o, int segment, FILE * op)
 						size = 1;
 					}
 				}
-				if (optype == REL_SYMBOL && ldmode == LD_FUZIX)
-					record_reloc(o, high, size, (s->type & S_SEGMENT), dot);
+				if (optype == REL_SYMBOL)
+					record_reloc(o, high, size, (s->type & S_SEGMENT), dot, segment);
 				target_put(o, r, size, op);
 				dot += size;
 				break;
@@ -1382,7 +1395,9 @@ static void write_stream(FILE * op, int seg)
 			if (verbose)
 				printf("Writing seg %d from %x\n", seg, dot);
 			/* TODO: assumes 16bit */
-			if (!is_code(seg) && split_id)
+			if (overlays && seg >= OVERLAY)
+				xfseek(op, dot + 0x10000 * (seg - OVERLAY + split_id + 1));
+			else if (!is_code(seg) && split_id)
 				xfseek(op, dot + 0x10000);
 			else
 				xfseek(op, dot);
@@ -1444,12 +1459,17 @@ static void write_binary(FILE * op, FILE *mp)
 	write_stream(op, DATA);
 	/* Absolute images may contain things other than code/data/bss */
 	if (ldmode == LD_ABSOLUTE) {
-		for (i = 4; i < OSEG; i++) {
+		for (i = 4; i < OVERLAY; i++) {
 			if (target_has_regzp()) {
 				if (i == ZP)
 					continue;
 			}
 			write_stream(op, i);
+		}
+		if (overlays) {
+			/* Now write overlays */
+			for (i = OVERLAY; i < OSEG; i++)
+				write_stream(op, i);
 		}
 	}
 	else {
@@ -1564,7 +1584,7 @@ int main(int argc, char *argv[])
 
 	arg0 = argv[0];
 
-	while ((opt = getopt(argc, argv, "rbvtsiu:o:m:f:R:A:B:C:D:S:X:Z:8:")) != -1) {
+	while ((opt = getopt(argc, argv, "rbvtsiu:o:m:f:R:A:B:C:D:O:S:X:Z:8:9:")) != -1) {
 		switch (opt) {
 		case 'r':
 			ldmode = LD_RFLAG;
@@ -1621,6 +1641,11 @@ int main(int argc, char *argv[])
 			base[7] = xstrtoul(optarg);
 			baseset[7] = 1;
 			break;
+		case 'O':
+			base[10] = xstrtoul(optarg);
+			baseset[10] = 1;
+			overlays = 1;
+			break;
 		case 'S':	/* Shared/Common */
 			base[6] = xstrtoul(optarg);
 			baseset[6] = 1;
@@ -1636,6 +1661,10 @@ int main(int argc, char *argv[])
 		case '8':
 			base[8] = xstrtoul(optarg);
 			baseset[8] = 1;
+			break;
+		case '9':
+			base[9] = xstrtoul(optarg);
+			baseset[9] = 1;
 			break;
 		default:
 			fprintf(stderr, "%s: name ...\n", argv[0]);
