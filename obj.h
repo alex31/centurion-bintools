@@ -115,7 +115,7 @@ struct objhdr
 #define REL_SIZE	0x30	/* 1-4 bytes */
 /* If REL_SIMPLE then ... */
 #define REL_SIMPLE	0x80	/* relocation to base of segment */
-#define REL_SEG		0x0F	/* segment 0-15 */	
+#define REL_SEG		0x0F	/* segment 0-15 */
 
 /*    followed by the bytes to relocate */
 
@@ -123,7 +123,7 @@ struct objhdr
 #define REL_TYPE	0x0F
 /* 00 is reserved */
 #define REL_SPECIAL	0x00	/* REL_REL REL_EOF etc */
-#define REL_SYMBOL	0x01	/* Followed by a 2 byte symbol code then 
+#define REL_SYMBOL	0x01	/* Followed by a 2 byte symbol code then
                                    offset to relocate */
 #define	REL_PCREL	0x02	/* Followed by a 2 byte symbol code then
 				   a word sized value regardless of reloc size
@@ -170,7 +170,7 @@ struct objhdr
 #define REL_TARGET	(REL_SPECIAL2))	/* 8F */
 #define REL_EXTEND	(REL_SPECIAL2 | 0x70)	/* Reserved FF */
 
-/* symbols and debug are in the format 
+/* symbols and debug are in the format
     uint8_t flags
     char name[16] (0 terminated if < 16)
     uint16_t data */
@@ -197,8 +197,11 @@ struct objhdr
 #define LITERAL		7		/* Literals (mostly a compiler helper) */
 #define COMMONDATA	8		/* Common for writables */
 #define BUFFERS		9		/* Buffers for kernel */
-/* Special cases 10+ don't exist as real segments */
+#define OVERLAY		10		/* 10-13 are used for overlays */
+/* Special cases 14+ don't exist as real segments */
 #define PCREL		14		/* assumed signed */
 /* and 15 is 'any' */
+
+#define SEGNAME		"ACDBZXSLsb1234PU"
 
 #endif
