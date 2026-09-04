@@ -19,8 +19,6 @@ static int show_debug = 1;
 static int show_name;
 static int show_undef;
 
-static char segname[] = "ACDBZXSLsb?????U";
-
 static int do_nm(FILE *fp, const char *name)
 {
     static struct objhdr oh;
@@ -61,7 +59,7 @@ static int do_nm(FILE *fp, const char *name)
         addr = fgetc(fp);
         addr |= fgetc(fp) << 8;
         base += 2;
-        c = segname[type & S_SEGMENT];
+        c = SEGNAME[type & S_SEGMENT];
         if (!(type & S_UNKNOWN)) {
             /* Showing undefined only */
             if (show_undef)
@@ -74,7 +72,7 @@ static int do_nm(FILE *fp, const char *name)
         printf("%04X %c %s\n", addr, c, symname);
     }
     return 0;
-}            
+}
 
 int main(int argc, char *argv[])
 {

@@ -97,7 +97,7 @@ static void byte(int seg, uint8_t v)
         printf("\n");
     }
 }
-    
+
 static void reloc_tag(const char *p)
 {
     *relptr++ = *p;
@@ -110,7 +110,7 @@ static void reloc_type(const char *p)
 
 static void reloc_seg(int n)
 {
-    relbuf[6] = "ACDBZXS7???????U"[n];
+    relbuf[6] = SEGNAME[n];
 }
 
 static void reloc_size(int n)
@@ -159,7 +159,7 @@ static void reloc_symvalue(int fd, int seg, int size)
         uint16_t n;
         char *p;
         uint16_t v;
-        
+
         /* FIXME: endianness check from header */
         n = nextbyte(fd) << 8;
         n |= nextbyte(fd);
@@ -190,7 +190,7 @@ static void reloc_end(void)
         bytect = 0;
     }
     printf("%s\n", relbuf);
-} 
+}
 
 static int checkdot(int seg, int dot)
 {
@@ -208,10 +208,10 @@ static int dump_data(const char *p, int seg, int fd)
     int c;
     int size;
     int high;
-    
+
     dot = 0;
     bytect = 0;
-    
+
     while((c = nextbyte_eof(fd)) != -1) {
         if (c != REL_ESC) {
             if (checkdot(seg, dot))
@@ -298,8 +298,8 @@ static int dump_data(const char *p, int seg, int fd)
             reloc_symbol(fd, size);
             reloc_end();
             dot += size - high;
-            continue;  
-        }         
+            continue;
+        }
     }
     fprintf(stderr, "%s: Unexpected EOF.\n", p);
     return 1;
