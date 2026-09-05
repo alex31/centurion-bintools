@@ -796,7 +796,7 @@ static void set_segment_bases(void)
 	}
 
 	if (verbose) {
-		for (i = 1; i < 7; i++)
+		for (i = 1; i < OSEG; i++)
 			printf("Segment %c Size %04X\n", segnames[i], size[i]);
 	}
 	/* We now know where to put the binary */
@@ -1594,7 +1594,7 @@ int main(int argc, char *argv[])
 			strip = 1;
 			break;
 		case 'v':
-			printf("FuzixLD 0.2.1\n");
+			printf("FuzixLD 0.2.2\n");
 			break;
 		case 't':
 			verbose = 1;
@@ -1642,8 +1642,9 @@ int main(int argc, char *argv[])
 			baseset[7] = 1;
 			break;
 		case 'O':
-			base[10] = xstrtoul(optarg);
-			baseset[10] = 1;
+			for (i = OVERLAY; i < OSEG; i++)
+				base[i] = xstrtoul(optarg);
+			baseset[i] = 1;
 			overlays = 1;
 			break;
 		case 'S':	/* Shared/Common */
