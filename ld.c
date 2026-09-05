@@ -558,8 +558,6 @@ static void print_symbol(register struct symbol *s, FILE *fp)
 		c = 'U';
 	else {
 		c = segnames[s->type & S_SEGMENT];
-		if (s->type & S_PUBLIC)
-			c = toupper(c);
 	}
 #ifdef ARCH32
 	fprintf(fp, "%08X %c %.*s\n", s->value, c, NAMELEN, s->name);
@@ -752,7 +750,7 @@ static void order_segments(void)
 			fprintf(stderr, "Unknown segment '%c'.\n", *s);
 			error("invalid segment order");
 		}
-		n = p - segnames + 1;
+		n = p - segnames;
 		if (!baseset[n]) {
 			if (last != 0xFF)
 				append_segment(n, last);
