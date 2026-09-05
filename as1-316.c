@@ -28,6 +28,7 @@ static void require_feat(unsigned f)
 {
 	if (asmflags & f)
 		return;
+	/* FIXME: propogate into obj format for 116/316/516/PR1ME */
 	err('1', REQUIRE_FEATURE);
 }
 

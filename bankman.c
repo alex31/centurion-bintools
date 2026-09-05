@@ -22,6 +22,15 @@ struct stub {
 #define NSTUB		512
 #define STUB_SIZE	6
 
+struct cpu
+{
+    const char *name;
+    unsigned stub_size;
+    void (*stub)(unsigned dseg, uint16_t addr);
+    void (*fixup)(unsigned sseg, unsigned dseg, uint16_t addr);
+};
+
+static struct cpu *cpu;
 static struct stub stubs[NSTUB];
 static unsigned nstub;
 static uint16_t stub_next;
@@ -151,7 +160,141 @@ static void find_stub_function(unsigned dbank)
     }
 }
 
-static void fixup_code(unsigned sseg, unsigned dseg, uint16_t addr)
+static void fixup_6803(unsigned sseg, unsigned dseg, uint16_t addr)
+{
+    int i;
+    unsigned sm, dm;
+    /* Points to high byte so back pedal for little endian */
+    addr--;
+    /* Look for PSHX JSR xxxx PULX */
+    if (readb(sseg, addr - 2) != 0x3C ||
+        readb(sseg, addr - 1) != 0xBD || readb(sseg, addr + 2) != 0x38) {
+        fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+        for (i = -2; i <= 2; i++)
+            printf("%02X ", readb(sseg, addr + i));
+        printf("\n");
+        exit(1);
+    }
+    /* Ok it's a valid block */
+    writeb(sseg, addr + 2, readb(sseg, addr + 1));
+    writeb(sseg, addr + 1, readb(sseg, addr));
+    writeb(sseg, addr - 2, 0xBD);
+
+    sm = map_seg_to_bank(sseg);
+    dm = map_seg_to_bank(dseg);
+    if (bankfunc[sm][dm] == 0)
+        find_bank_function(sm, dm);
+    /* 6803 is big endian */
+    writeb(sseg, addr - 1, bankfunc[sm][dm] >> 8);
+    writeb(sseg, addr, bankfunc[sm][dm]);
+}
+
+static void stub_6803(unsigned dseg, uint16_t addr)
+{
+    /* Write record */
+    /* LD P2,=addr */
+    writeb(stubseg, stub_next, 0xCE);
+    writeb(stubseg, stub_next + 1, addr >> 8);
+    writeb(stubseg, stub_next + 2, addr);
+    /* JP stubfunc */
+    writeb(stubseg, stub_next + 3, 0x7E);
+    writeb(stubseg, stub_next + 4, stubfunc[dseg]  >> 8);
+    writeb(stubseg, stub_next + 5, stubfunc[dseg]);
+}
+
+/* 6809 is much more awkward as we have no single byte push word */
+static void fixup_6809(unsigned sseg, unsigned dseg, uint16_t addr)
+{
+    int i;
+    unsigned sm, dm;
+    /* Points to high byte so back pedal for little endian */
+    addr--;
+    /* Look for PSHS X JSR PULS X over a 7 byte range*/
+    if (readb(sseg, addr - 3) == 0x34 || readb(sseg, addr - 2) != 0x10 ||
+        readb(sseg, addr - 1) != 0xBD ||
+        readb(sseg, addr + 2) != 0x35 || readb(sseg, addr + 3) != 0x10) {
+        fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+        for (i = -3; i <= 3; i++)
+            printf("%02X ", readb(sseg, addr + i));
+        printf("\n");
+        exit(1);
+    }
+    /* Ok it's a valid block */
+    /* LDX the value */
+    writeb(sseg, addr -3, 0x8E);
+    writeb(sseg, addr - 2, readb(sseg, addr + 1));
+    writeb(sseg, addr - 1, readb(sseg, addr));
+    /* JSR the bank op */
+    writeb(sseg, addr, 0xBD);
+    writeb(sseg, addr + 3, 0x12);
+
+    sm = map_seg_to_bank(sseg);
+    dm = map_seg_to_bank(dseg);
+    if (bankfunc[sm][dm] == 0)
+        find_bank_function(sm, dm);
+    /* 6809 is big endian */
+    writeb(sseg, addr + 1, bankfunc[sm][dm] >> 8);
+    writeb(sseg, addr + 2, bankfunc[sm][dm]);
+}
+
+static void stub_6809(unsigned dseg, uint16_t addr)
+{
+    /* Write record */
+    /* LDX #xxxx JMP func */
+    writeb(stubseg, stub_next, 0x8E);
+    writeb(stubseg, stub_next + 1, addr >> 8);
+    writeb(stubseg, stub_next + 2, addr);
+    /* JMP stubfunc */
+    writeb(stubseg, stub_next + 3, 0x7E);
+    writeb(stubseg, stub_next + 4, stubfunc[dseg] >> 8);
+    writeb(stubseg, stub_next + 5, stubfunc[dseg]);
+}
+
+static void fixup_8070(unsigned sseg, unsigned dseg, uint16_t addr)
+{
+    int i;
+    unsigned sm, dm;
+    /* Points to high byte so back pedal for little endian */
+    addr--;
+    /* Look for PUSH EA JSR xxxx POP EA */
+    if (readb(sseg, addr - 2) != 0x08 ||
+        readb(sseg, addr - 1) != 0x20 || readb(sseg, addr + 2) != 0x3A) {
+        fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+        for (i = -2; i <= 2; i++)
+            printf("%02X ", readb(sseg, addr + i));
+        printf("\n");
+        exit(1);
+    }
+    /* Ok it's a valid block */
+    writeb(sseg, addr + 2, readb(sseg, addr + 1));
+    writeb(sseg, addr + 1, readb(sseg, addr));
+    writeb(sseg, addr - 2, 0x20);
+
+    sm = map_seg_to_bank(sseg);
+    dm = map_seg_to_bank(dseg);
+    if (bankfunc[sm][dm] == 0)
+        find_bank_function(sm, dm);
+    /* 8070 does increment and PC fetch so the jumps point to the address
+       before the target */
+    writeb(sseg, addr - 1, (bankfunc[sm][dm] - 1));
+    writeb(sseg, addr, (bankfunc[sm][dm] - 1) >> 8);
+}
+
+static void stub_8070(unsigned dseg, uint16_t addr)
+{
+    /* Write record */
+    /* LD P2,=addr */
+    addr--;	/* As we need to point to the byte before */
+    writeb(stubseg, stub_next, 0x26);
+    writeb(stubseg, stub_next + 1, addr);
+    writeb(stubseg, stub_next + 2, addr >> 8);
+    /* JP stubfunc */
+    writeb(stubseg, stub_next + 3, 0x24);
+    writeb(stubseg, stub_next + 4, stubfunc[dseg] - 1);
+    writeb(stubseg, stub_next + 5, (stubfunc[dseg] - 1) >> 8);
+}
+
+static void fixup_8080(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
     unsigned sm, dm;
@@ -179,6 +322,18 @@ static void fixup_code(unsigned sseg, unsigned dseg, uint16_t addr)
     writeb(sseg, addr, bankfunc[sm][dm] >> 8);
 }
 
+static void stub_8080(unsigned dseg, uint16_t addr)
+{
+    /* Write record */
+    /* LD DE,addr */
+    writeb(stubseg, stub_next, 0x11);
+    writeb(stubseg, stub_next + 1, addr);
+    writeb(stubseg, stub_next + 2, addr >> 8);
+    /* JP stubfunc */
+    writeb(stubseg, stub_next + 3, 0xC3);
+    writeb(stubseg, stub_next + 4, stubfunc[dseg]);
+    writeb(stubseg, stub_next + 5, stubfunc[dseg] >> 8);
+}
 
 static uint16_t find_stub(unsigned sseg, unsigned dseg, uint16_t addr)
 {
@@ -188,7 +343,7 @@ static uint16_t find_stub(unsigned sseg, unsigned dseg, uint16_t addr)
             return s->stub;
     }
     /* No luck */
-    if (stub_next + STUB_SIZE >= stub_end) {
+    if (stub_next + cpu->stub_size >= stub_end) {
         fprintf(stderr, "stub: too many stubs for stub area.\n");
         exit(1);
     }
@@ -204,17 +359,9 @@ static uint16_t find_stub(unsigned sseg, unsigned dseg, uint16_t addr)
     dseg = map_seg_to_bank(dseg);
     if (stubfunc[dseg] == 0)
         find_stub_function(dseg);
-    /* Write record */
-    /* LD DE,addr */
-    writeb(stubseg, stub_next, 0x11);
-    writeb(stubseg, stub_next + 1, addr);
-    writeb(stubseg, stub_next + 2, addr >> 8);
-    /* JP stubfunc */
-    writeb(stubseg, stub_next + 3, 0xC3);
-    writeb(stubseg, stub_next + 4, stubfunc[dseg]);
-    writeb(stubseg, stub_next + 5, stubfunc[dseg] >> 8);
+    cpu->stub(dseg, addr);
     nstub++;
-    stub_next += STUB_SIZE;
+    stub_next += cpu->stub_size;
     return s->stub;
 }
 
@@ -224,12 +371,6 @@ static void insert_stub(unsigned sseg, unsigned dseg, uint16_t addr)
     uint16_t stub = find_stub(sseg, dseg, dp);
     writeb(sseg, addr - 1, stub);
     writeb(sseg, addr, stub >> 8);
-}
-
-void usage(void)
-{
-    puts("usage");
-    exit(1);
 }
 
 static void process_reloc(int fd)
@@ -250,7 +391,9 @@ static void process_reloc(int fd)
                 /* Code referencing data (unbanked) */
                 if (!is_code(dseg))
                     continue;
-                fixup_code(sseg, dseg, (c[1] << 8) | c[2]);
+                /* Code is always mapped and our base segment */
+                if (sseg != CODE)
+                    cpu->fixup(sseg, dseg, (c[1] << 8) | c[2]);
             } else {
                 if (is_code(dseg))	/* Symbol reference to code */
                     insert_stub(sseg, dseg, (c[1] << 8) | c[2]);
@@ -269,34 +412,68 @@ static void process_reloc(int fd)
     }
 }
 
+static struct cpu cputab[] = {
+    { "6303", 6, stub_6803, fixup_6803 },
+    { "6803", 6, stub_6803, fixup_6803 },
+    { "6809", 6, stub_6809, fixup_6809 },
+    { "8070", 6, stub_8070, fixup_8070 },
+    { "8080", 6, stub_8080, fixup_8080 },
+    { "8085", 6, stub_8080, fixup_8080 },
+    { "Z80", 6, stub_8080, fixup_8080 }, /* We only use 8080 ops for this */
+    { NULL }
+};
+
+static struct cpu *find_cpu(const char *p)
+{
+    register struct cpu *cpu = cputab;
+    while(cpu->name) {
+        if (strcmp(cpu->name, p) == 0)
+            return cpu;
+        cpu++;
+    }
+    return NULL;
+}
+
+void usage(void)
+{
+    puts("bankman binary map relocs cpu");
+    exit(1);
+}
+
 int main(int argc, char *argv[])
 {
     int reloc;
     unsigned dummy;
 
-    if (argc != 4)
+    if (argc != 5)
         usage();
+
+    cpu = find_cpu(argv[4]);
+    if (cpu == NULL) {
+        fprintf(stderr, "%s: unsupported CPU '%s'.\n", argv[0], argv[4]);
+        return 1;
+    }
     bin_fd = open(argv[1], O_RDWR);
     if (bin_fd == -1) {
         perror(argv[1]);
-        exit(1);
+        return 1;
     }
     map = fopen(argv[2], "r");
     if (map == NULL) {
         perror(argv[2]);
-        exit(1);
+        return 1;
     }
 
     reloc = open(argv[3], O_RDONLY);
     if (reloc == -1) {
         perror(argv[3]);
-        exit(1);
+        return 1;
     }
 
     if (find_symbol("stub", &stubseg, &stub_next) == 0 ||
         find_symbol("stub_end", &dummy, &stub_end) == 0) {
         fprintf(stderr, "%s: missing stub symbols.\n", argv[2]);
-        exit(1);
+        return 1;
     }
 
     process_reloc(reloc);

@@ -15,7 +15,7 @@ all: as1802 ld1802 nm1802 osize1802 dumprelocs1802 \
      assuper8 ldsuper8 nmsuper8 osizesuper8 dumprelocssuper8 \
      asz8 ldz8 nmz8 osizez8 dumprelocsz8 \
      asz80 ldz80 nmz80 osizez80 dumprelocsz80 \
-     reloc reloc6502 reloc680x template Tools
+     reloc reloc6502 reloc680x bankman template Tools
 
 test: as316 ld316 nm316 osize316 dumprelocs316 \
       as8060 ld8060 nm8060 osize8060 dumprelocs8060 \
@@ -47,6 +47,9 @@ reloc6502: $(HDR) reloc.c
 reloc680x: $(HDR) reloc.c
 	cc $(CFLAGS) -DRELOC_680X reloc.c -o reloc680x
 
+
+bankman: bankman.c
+	cc $(CFLAGS) bankman.c -o bankman
 
 template: template.c
 	cc $(CFLAGS) template.c -o template
@@ -457,6 +460,7 @@ clean:
 	rm -f asz8 ldz8 nmz8 osizez8 dumprelocsz8
 	rm -f asz80 ldz80 nmz80 osizez80 dumprelocsz80
 	rm -f reloc reloc6502 reloc680x
+	rm -f template bankman
 	(cd Tools; make clean)
 
 # FIXME: allow root specification
@@ -484,6 +488,7 @@ install: all
 	cp reloc6502 $(CCROOT)/bin/reloc6502
 	cp reloc680x $(CCROOT)/bin/reloc6800
 	cp reloc680x $(CCROOT)/bin/reloc6809
+	cp bankman $(CCROOT)/bin/bankman
 	cp template $(CCROOT)/bin/template
 	cp Tools/Flex/binify $(CCROOT)/bin/flex-binify
 	cp Tools/Flex/flexfs $(CCROOT)/bin/flex-fs
