@@ -1492,8 +1492,13 @@ static void write_binary(FILE * op, FILE *mp)
 		if (!rawstream) {
 			xfseek(op, 0);
 			fwrite(&hdr, sizeof(hdr), 1, op);
-		} else	/* FIXME: honour umask! */
-			fchmod (fileno(op), 0755);
+		} else {
+#ifndef _WIN32
+			mode_t um = umask (0);
+			umask (um);
+			fchmod (fileno(op), 0777 & ~um);
+#endif
+		}
 	}
 }
 
