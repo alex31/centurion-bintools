@@ -163,20 +163,84 @@ static void find_stub_function(unsigned dbank)
     }
 }
 
+static unsigned fixup_6502(unsigned sseg, unsigned dseg, uint16_t addr)
+{
+    int i;
+    unsigned sm, dm;
+    uint8_t c;
+    /* Points to high byte so back pedal for little endian */
+    addr -= 2;
+    c = readb(sseg, addr);
+    /* Look for JSR XXXX JMP YYYY NOP */
+    if (c != 0x20 || readb(sseg, addr + 3) != 0x4C || readb(sseg, addr + 6) != 0xEA) {
+        if (c == 0x20 || c == 0x4C) {
+            fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+            for (i = 0; i <= 7; i++)
+                printf("%02X ", readb(sseg, addr + i));
+            printf("\n");
+            exit(1);
+        }
+        return 0;
+    }
+    /* Ok it's a valid block */
+    writeb(sseg, addr, 0xA9);	/* LDA low */
+    /* Next byte is correct */
+    /* Move high address up one */
+    writeb(sseg, addr + 3, readb(sseg, addr + 2));
+    /* LDX */
+    writeb(sseg, addr +2, 0xA2);
+    /* We now LDA LDX for the value, and we need to JSR to the right bank operator */
+    writeb(sseg, addr + 4, 0x20);
+
+    sm = map_seg_to_bank(sseg);
+    dm = map_seg_to_bank(dseg);
+    if (bankfunc[sm][dm] == 0)
+        find_bank_function(sm, dm);
+    /* 8070 does increment and PC fetch so the jumps point to the address
+       before the target */
+    writeb(sseg, addr + 5, bankfunc[sm][dm]);
+    writeb(sseg, addr + 6, bankfunc[sm][dm] >> 8);
+
+    /* The whole thing has now changed from
+        JSR _foo JMP 3 NOP to
+        LDA #<_foo LDX #>_foo JSR __bank_n_m */
+    return 1;
+}
+
+static void stub_6502(unsigned dseg, uint16_t addr)
+{
+    /* Write record */
+    /* LD P2,=addr */
+    addr--;	/* As we need to point to the byte before */
+    writeb(stubseg, stub_next, 0xA9);
+    writeb(stubseg, stub_next + 1, addr);
+    writeb(stubseg, stub_next + 2, 0xA2);
+    writeb(stubseg, stub_next + 3, addr >> 8);
+    /* JMP stubfunc */
+    writeb(stubseg, stub_next + 4, 0x4C);
+    writeb(stubseg, stub_next + 5, stubfunc[dseg]);
+    writeb(stubseg, stub_next + 6, stubfunc[dseg] >> 8);
+}
+
 static unsigned fixup_6803(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
     unsigned sm, dm;
-    /* Points to high byte so back pedal for little endian */
-    addr--;
+    uint8_t c;
+
+    c = readb(sseg, addr - 1);
     /* Look for PSHX JSR xxxx PULX */
     if (readb(sseg, addr - 2) != 0x3C ||
-        readb(sseg, addr - 1) != 0xBD || readb(sseg, addr + 2) != 0x38) {
-        fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
-        for (i = -2; i <= 2; i++)
-            printf("%02X ", readb(sseg, addr + i));
-        printf("\n");
-        exit(1);
+        c != 0xBD || readb(sseg, addr + 2) != 0x38) {
+        if (c == 0xBD || c == 0x7E) {
+            fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+            for (i = -2; i <= 2; i++)
+                printf("%02X ", readb(sseg, addr + i));
+            printf("\n");
+            exit(1);
+        }
+        /* Use stubs if need be */
+        return 0;
     }
     /* Ok it's a valid block */
     writeb(sseg, addr + 2, readb(sseg, addr + 1));
@@ -190,6 +254,7 @@ static unsigned fixup_6803(unsigned sseg, unsigned dseg, uint16_t addr)
     /* 6803 is big endian */
     writeb(sseg, addr - 1, bankfunc[sm][dm] >> 8);
     writeb(sseg, addr, bankfunc[sm][dm]);
+    return 1;
 }
 
 static void stub_6803(unsigned dseg, uint16_t addr)
@@ -209,18 +274,20 @@ static void stub_6803(unsigned dseg, uint16_t addr)
 static unsigned fixup_6809(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
+    uint8_t c;
     unsigned sm, dm;
-    /* Points to high byte so back pedal for little endian */
-    addr--;
+    c = readb(sseg, addr - 1);
     /* Look for PSHS X JSR PULS X over a 7 byte range*/
     if (readb(sseg, addr - 3) == 0x34 || readb(sseg, addr - 2) != 0x10 ||
-        readb(sseg, addr - 1) != 0xBD ||
-        readb(sseg, addr + 2) != 0x35 || readb(sseg, addr + 3) != 0x10) {
-        fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
-        for (i = -3; i <= 3; i++)
-            printf("%02X ", readb(sseg, addr + i));
-        printf("\n");
-        exit(1);
+        c != 0xBD || readb(sseg, addr + 2) != 0x35 || readb(sseg, addr + 3) != 0x10) {
+        if (c == 0x35 || c == 0x7E) {
+            fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+            for (i = -3; i <= 3; i++)
+                printf("%02X ", readb(sseg, addr + i));
+            printf("\n");
+            exit(1);
+        }
+        return 0;
     }
     /* Ok it's a valid block */
     /* LDX the value */
@@ -238,6 +305,7 @@ static unsigned fixup_6809(unsigned sseg, unsigned dseg, uint16_t addr)
     /* 6809 is big endian */
     writeb(sseg, addr + 1, bankfunc[sm][dm] >> 8);
     writeb(sseg, addr + 2, bankfunc[sm][dm]);
+    return 1;
 }
 
 static void stub_6809(unsigned dseg, uint16_t addr)
@@ -257,16 +325,21 @@ static unsigned fixup_8070(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
     unsigned sm, dm;
+    uint8_t c;
     /* Points to high byte so back pedal for little endian */
     addr--;
+    c = readb(sseg, addr - 1);
     /* Look for PUSH EA JSR xxxx POP EA */
     if (readb(sseg, addr - 2) != 0x08 ||
-        readb(sseg, addr - 1) != 0x20 || readb(sseg, addr + 2) != 0x3A) {
-        fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
-        for (i = -2; i <= 2; i++)
-            printf("%02X ", readb(sseg, addr + i));
-        printf("\n");
-        exit(1);
+        c != 0x20 || readb(sseg, addr + 2) != 0x3A) {
+        if (c == 0x20 || c == 0x24) {
+            fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+            for (i = -2; i <= 2; i++)
+                printf("%02X ", readb(sseg, addr + i));
+            printf("\n");
+            exit(1);
+        }
+        return 0;
     }
     /* Ok it's a valid block */
     writeb(sseg, addr + 2, readb(sseg, addr + 1));
@@ -281,6 +354,7 @@ static unsigned fixup_8070(unsigned sseg, unsigned dseg, uint16_t addr)
        before the target */
     writeb(sseg, addr - 1, (bankfunc[sm][dm] - 1));
     writeb(sseg, addr, (bankfunc[sm][dm] - 1) >> 8);
+    return 1;
 }
 
 static void stub_8070(unsigned dseg, uint16_t addr)
@@ -450,6 +524,7 @@ static void process_reloc(int fd)
 
 static struct cpu cputab[] = {
     { "6303", 6, stub_6803, fixup_6803 },
+    { "6502", 7, stub_6502, fixup_6502 },
     { "6803", 6, stub_6803, fixup_6803 },
     { "6809", 6, stub_6809, fixup_6809 },
     { "8070", 6, stub_8070, fixup_8070 },
