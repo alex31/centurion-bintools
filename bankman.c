@@ -405,10 +405,10 @@ static void process_reloc(int fd)
                 /* Code calling code or referencing data in the same */
                 if (sseg == dseg || (!is_overlay(sseg) && !is_overlay(dseg)))
                     continue;
-                /* Stuff in code won't bank switch itself so if it calls
-                   stuff that will in turn reverse the banking and no work
-                   is needed */
-                if (dseg == CODE)
+                /* If the code being called is always present then we will
+                   not use helpers. However this means any call out from
+                   common code must use a helper when calling banked code */
+                if (!is_overlay(dseg))
                     continue;
                 /* Code referencing data (unbanked) */
                 if (!is_code(dseg))
