@@ -836,6 +836,13 @@ static void set_segment_bases(void)
 		insert_internal_symbol("__common_size", ABSOLUTE, size[COMMON]);
 		insert_internal_symbol("__buffers_size", ABSOLUTE, size[BUFFERS]);
 		insert_internal_symbol("__commondata_size", ABSOLUTE, size[COMMONDATA]);
+		if (overlays) {
+			insert_internal_symbol("__overlay", OVERLAY, 0);
+			insert_internal_symbol("__overlay1_size", ABSOLUTE, size[OVERLAY]);
+			insert_internal_symbol("__overlay2_size", ABSOLUTE, size[OVERLAY + 1]);
+			insert_internal_symbol("__overlay3_size", ABSOLUTE, size[OVERLAY + 2]);
+			insert_internal_symbol("__overlay4_size", ABSOLUTE, size[OVERLAY + 3]);
+		}
 	}
 	/* Now set the base of each object appropriately */
 	memcpy(&pos, &base, sizeof(pos));
