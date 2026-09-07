@@ -27,7 +27,7 @@ struct cpu
     const char *name;
     unsigned stub_size;
     void (*stub)(unsigned dseg, uint16_t addr);
-    void (*fixup)(unsigned sseg, unsigned dseg, uint16_t addr);
+    unsigned (*fixup)(unsigned sseg, unsigned dseg, uint16_t addr);
 };
 
 static struct cpu *cpu;
@@ -75,11 +75,11 @@ static void seek_to(unsigned seg, uint16_t addr)
 {
     static off_t last = 0xFFFFFFFF;
     off_t off = addr;
-    printf("addr %u:%04X\n", seg, addr);
+//    printf("addr %u:%04X\n", seg, addr);
     if (seg >= OVERLAY)
         off += 0x10000 * (seg - OVERLAY + 1);
     if (off != last + 1) {
-        printf("Seek to %ld\n", (long)off);
+//        printf("Seek to %ld\n", (long)off);
         if (lseek(bin_fd, off, SEEK_SET) < 0) {
             perror("lseek");
             exit(1);
@@ -109,23 +109,26 @@ static void writeb(unsigned seg, uint16_t addr, uint8_t c)
     }
 }
 
+static unsigned is_overlay(unsigned seg)
+{
+    return seg >= OVERLAY;
+}
+
 static unsigned is_code(unsigned seg)
 {
-    if (seg == CODE || seg == COMMON || seg >= OVERLAY)
+    if (seg == CODE || seg == DISCARD || seg == COMMON || seg >= OVERLAY)
         return 1;
     return 0;
 }
 
 static unsigned map_seg_to_bank(unsigned seg)
 {
-    if (seg == CODE)
+    if (!is_overlay(seg))
         return '0';
     if (seg >= OVERLAY && seg < PCREL)
         return '1' + seg - OVERLAY;
     /* Common calls into banks need to save/restore old bank which will
        need to be established at runtime */
-    if (seg == COMMON)
-        return 'C';
     fprintf(stderr, "Segment %c has no bank mapping.\n", segname[seg]);
     exit(1);
 }
@@ -160,7 +163,7 @@ static void find_stub_function(unsigned dbank)
     }
 }
 
-static void fixup_6803(unsigned sseg, unsigned dseg, uint16_t addr)
+static unsigned fixup_6803(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
     unsigned sm, dm;
@@ -203,7 +206,7 @@ static void stub_6803(unsigned dseg, uint16_t addr)
 }
 
 /* 6809 is much more awkward as we have no single byte push word */
-static void fixup_6809(unsigned sseg, unsigned dseg, uint16_t addr)
+static unsigned fixup_6809(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
     unsigned sm, dm;
@@ -250,7 +253,7 @@ static void stub_6809(unsigned dseg, uint16_t addr)
     writeb(stubseg, stub_next + 5, stubfunc[dseg]);
 }
 
-static void fixup_8070(unsigned sseg, unsigned dseg, uint16_t addr)
+static unsigned fixup_8070(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
     unsigned sm, dm;
@@ -294,20 +297,26 @@ static void stub_8070(unsigned dseg, uint16_t addr)
     writeb(stubseg, stub_next + 5, (stubfunc[dseg] - 1) >> 8);
 }
 
-static void fixup_8080(unsigned sseg, unsigned dseg, uint16_t addr)
+static unsigned fixup_8080(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     int i;
     unsigned sm, dm;
+    uint8_t c;
     /* Points to high byte so back pedal for little endian */
     addr--;
+    c = readb(sseg, addr - 1);
     /* For 8080/8085/Z80 this should have PUSH AF CALL in front */
-    if (readb(sseg, addr - 2) != 0xF5 ||
-        readb(sseg, addr - 1) != 0xCD || readb(sseg, addr + 2) != 0xF1) {
-        fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
-        for (i = -2; i <= 2; i++)
-            printf("%02X ", readb(sseg, addr + i));
-        printf("\n");
-        exit(1);
+    if (readb(sseg, addr - 2) != 0xF5 || c != 0xCD || readb(sseg, addr + 2) != 0xF1) {
+        /* Direct call - so an error ? */
+        if ((c & 0xC7) == 0xC2 || (c & 0xC7) == 0xC5 ||
+            c == 0xCD || c == 0xC3) {
+                fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
+                for (i = -2; i <= 2; i++)
+                    printf("%02X ", readb(sseg, addr + i));
+                printf("\n");
+                exit(1);
+        }
+        return 0;
     }
     /* Ok it's a valid block */
     writeb(sseg, addr + 2, readb(sseg, addr + 1));
@@ -320,6 +329,7 @@ static void fixup_8080(unsigned sseg, unsigned dseg, uint16_t addr)
         find_bank_function(sm, dm);
     writeb(sseg, addr - 1, bankfunc[sm][dm]);
     writeb(sseg, addr, bankfunc[sm][dm] >> 8);
+    return 1;
 }
 
 static void stub_8080(unsigned dseg, uint16_t addr)
@@ -338,9 +348,11 @@ static void stub_8080(unsigned dseg, uint16_t addr)
 static uint16_t find_stub(unsigned sseg, unsigned dseg, uint16_t addr)
 {
     struct stub *s = stubs;
+    unsigned ds;
     while(s < stubs + nstub) {
         if (s->addr == addr && s->sseg == sseg && s->dseg == dseg)
             return s->stub;
+        s++;
     }
     /* No luck */
     if (stub_next + cpu->stub_size >= stub_end) {
@@ -356,12 +368,14 @@ static uint16_t find_stub(unsigned sseg, unsigned dseg, uint16_t addr)
     s->sseg = sseg;
     s->dseg = dseg;
     s->stub = stub_next;
-    dseg = map_seg_to_bank(dseg);
-    if (stubfunc[dseg] == 0)
-        find_stub_function(dseg);
-    cpu->stub(dseg, addr);
+    ds = map_seg_to_bank(dseg);
+    if (stubfunc[ds] == 0)
+        find_stub_function(ds);
+    cpu->stub(ds, addr);
     nstub++;
     stub_next += cpu->stub_size;
+    printf("New stub in segment %c for routine at %c:%04x is %04X\n",
+      segname[sseg], segname[dseg], addr, s->stub);
     return s->stub;
 }
 
@@ -371,12 +385,15 @@ static void insert_stub(unsigned sseg, unsigned dseg, uint16_t addr)
     uint16_t stub = find_stub(sseg, dseg, dp);
     writeb(sseg, addr - 1, stub);
     writeb(sseg, addr, stub >> 8);
+    printf("Adding stub in segment %c for routine at %c:%04x\n",
+      segname[sseg], segname[dseg], addr);
 }
 
 static void process_reloc(int fd)
 {
     unsigned sseg, dseg;
     uint8_t c[3];
+    unsigned r;
 
     while(read(fd, c, 3) == 3) {
         switch(c[0]) {
@@ -386,24 +403,43 @@ static void process_reloc(int fd)
         case 1:
             if (is_code(sseg)) {
                 /* Code calling code or referencing data in the same */
-                if (sseg == dseg)
+                if (sseg == dseg || (!is_overlay(sseg) && !is_overlay(dseg)))
+                    continue;
+                /* Stuff in code won't bank switch itself so if it calls
+                   stuff that will in turn reverse the banking and no work
+                   is needed */
+                if (dseg == CODE)
                     continue;
                 /* Code referencing data (unbanked) */
                 if (!is_code(dseg))
                     continue;
                 /* Code is always mapped and our base segment */
-                if (sseg != CODE)
-                    cpu->fixup(sseg, dseg, (c[1] << 8) | c[2]);
+                printf("Fixup from in seg %u ref %u\n",
+                    sseg, dseg);
+                r = cpu->fixup(sseg, dseg, (c[1] << 8) | c[2]);
+                /* Fix up error */
+                /* Was fixed up */
+                if (r)
+                    continue;
+                /* Data reference literal in code (eg ld hl,#_funcname)
+                   so stub it */
+                insert_stub(sseg, dseg, (c[1] << 8) | c[2]);
             } else {
-                if (is_code(dseg))	/* Symbol reference to code */
-                    insert_stub(sseg, dseg, (c[1] << 8) | c[2]);
-                /* Data to data references are unbanked and don't matter */
+                /* Source is a data reference to something */
+                if (is_overlay(dseg) && is_code(dseg))	/* Symbol reference to code */
+                        insert_stub(sseg, dseg, (c[1] << 8) | c[2]);
+                    /* Data to data references are unbanked and don't matter */
             }
             break;
         case 2:
             /* Sets the segmenmts for reloc 1 above */
             sseg = c[1];
             dseg = c[2];
+            if (sseg > 13 || dseg > 13) {
+                fprintf(stderr, "Invalid relocation segment record %02X %02X\n",
+                    c[1], c[2]);
+                exit(1);
+            }
             continue;
         default:
             fprintf(stderr, "Unknown reloc record %u\n", c[0]);
@@ -419,7 +455,7 @@ static struct cpu cputab[] = {
     { "8070", 6, stub_8070, fixup_8070 },
     { "8080", 6, stub_8080, fixup_8080 },
     { "8085", 6, stub_8080, fixup_8080 },
-    { "Z80", 6, stub_8080, fixup_8080 }, /* We only use 8080 ops for this */
+    { "z80", 6, stub_8080, fixup_8080 }, /* We only use 8080 ops for this */
     { NULL }
 };
 
@@ -475,7 +511,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "%s: missing stub symbols.\n", argv[2]);
         return 1;
     }
+    printf("Stubs from %04X to %04X, max of %u stubs.\n",
+        stub_next, stub_end, (stub_end - stub_next) / cpu->stub_size);
 
     process_reloc(reloc);
+    printf("%u stubs used.\n", nstub);
     return 0;
 }
