@@ -35,7 +35,7 @@ void badquote(char c)
 
 void process_sub(int argc, char *argv[])
 {
-    int n;
+    int n = 0;
     char *p;
     int c;
     c = getchar();
@@ -50,7 +50,7 @@ void process_sub(int argc, char *argv[])
         badmarker();
     if (n < 1 || n >= argc)
         badsize();
-    
+
     p = argv[n];
     while(*p) {
         if (*p != '\\')
@@ -86,4 +86,3 @@ int main(int argc, char *argv[])
             putchar(c);
     }
 }
-            
