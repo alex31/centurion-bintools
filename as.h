@@ -684,6 +684,7 @@ typedef	uint16_t	VALUE;		/* For symbol values */
 #define TBRA	0x1B00			/* branch */
 #define TLBRA	0x1C00			/* long branch */
 #define TJSR	0x1D00			/* Ops in weird spots */
+#define TRELW	0x1E00			/* PC relative word define */
 
 #define TIMMED	0x0010
 #define TDIR	0x0020

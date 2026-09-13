@@ -767,8 +767,8 @@ loop:
 		sp = lookup(id, uhash, 1);
 		sp->s_type |= TPUBLIC;
 		break;
-		/* .code etc */
 
+		/* .code etc */
 	case TSEGMENT:
 		segment = sp->s_value;
 		/* Tell the binary generator about a segment switch to a non
@@ -814,6 +814,21 @@ loop:
 		for (value = 0 ; value < a1.a_value; value++)
 			outab(0);
 		break;
+
+		/* Words PC relative */
+	case TRELW:
+		do {
+			getaddr(&a1);
+			constify(&a1);
+			istuser(&a1);
+			/* write_rel16 assumes 2 byte offset and we don't
+			   want it in this case */
+			a1.a_value += 2;
+			write_rel16(&a1);
+		} while ((c=getnb()) == ',');
+		unget(c);
+		break;
+
 	case TBRA:
 		getaddr(&a1);
 		disp = a1.a_value-dot[segment]-2;
