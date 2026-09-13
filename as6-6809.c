@@ -30,6 +30,7 @@ SYM	sym[] = {
 	{	0,	"rmb",		TDEFS,		XXXX	},
 	{	0,	"fcc",		TDEFM,		XXXX	},
 #include "as-std.h"
+	{	0,	".dp",		TSEGMENT,	ZP	},
 	{	0,	".pcrel",	TRELW,		XXXX	},
 	{	0,	"pcrel",	TRELW,		XXXX	},
 	{	0,	"abx",		TIMP,		0x3A	},
