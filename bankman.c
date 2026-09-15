@@ -278,7 +278,7 @@ static unsigned fixup_6809(unsigned sseg, unsigned dseg, uint16_t addr)
     unsigned sm, dm;
     c = readb(sseg, addr - 1);
     /* Look for PSHS X JSR PULS X over a 7 byte range*/
-    if (readb(sseg, addr - 3) == 0x34 || readb(sseg, addr - 2) != 0x10 ||
+    if (readb(sseg, addr - 3) != 0x34 || readb(sseg, addr - 2) != 0x10 ||
         c != 0xBD || readb(sseg, addr + 2) != 0x35 || readb(sseg, addr + 3) != 0x10) {
         if (c == 0x35 || c == 0x7E) {
             fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
