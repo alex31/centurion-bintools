@@ -382,7 +382,7 @@ static unsigned fixup_8080(unsigned sseg, unsigned dseg, uint16_t addr)
     /* For 8080/8085/Z80 this should have PUSH AF CALL in front */
     if (readb(sseg, addr - 2) != 0xF5 || c != 0xCD || readb(sseg, addr + 2) != 0xF1) {
         /* Direct call - so an error ? */
-        if ((c & 0xC7) == 0xC2 || (c & 0xC7) == 0xC5 ||
+        if ((c & 0xC7) == 0xC2 || (c & 0xC7) == 0xC4 ||
             c == 0xCD || c == 0xC3) {
                 fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
                 for (i = -2; i <= 2; i++)
