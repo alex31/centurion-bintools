@@ -1631,20 +1631,20 @@ int main(int argc, char *argv[])
 				align = 1;
 			break;
 		case 'B':	/* BSS */
-			base[3] = xstrtoul(optarg);
-			baseset[3] = 1;
+			base[BSS] = xstrtoul(optarg);
+			baseset[BSS] = 1;
 			break;
 		case 'C':	/* CODE */
-			base[1] = xstrtoul(optarg);
-			baseset[1] = 1;
+			base[CODE] = xstrtoul(optarg);
+			baseset[CODE] = 1;
 			break;
 		case 'D':	/* DATA */
-			base[2] = xstrtoul(optarg);
-			baseset[2] = 1;
+			base[DATA] = xstrtoul(optarg);
+			baseset[DATA] = 1;
 			break;
 		case 'L':	/* LITERAL */
-			base[7] = xstrtoul(optarg);
-			baseset[7] = 1;
+			base[LITERAL] = xstrtoul(optarg);
+			baseset[LITERAL] = 1;
 			break;
 		case 'O':
 			for (i = OVERLAY; i < OSEG; i++)
@@ -1653,24 +1653,24 @@ int main(int argc, char *argv[])
 			overlays = 1;
 			break;
 		case 'S':	/* Shared/Common */
-			base[6] = xstrtoul(optarg);
-			baseset[6] = 1;
+			base[COMMON] = xstrtoul(optarg);
+			baseset[COMMON] = 1;
 			break;
 		case 'X':	/* DISCARD */
-			base[5] = xstrtoul(optarg);
-			baseset[5] = 1;
+			base[DISCARD] = xstrtoul(optarg);
+			baseset[DISCARD] = 1;
 			break;
 		case 'Z':	/* ZP / DP */
-			base[4] = xstrtoul(optarg);
-			baseset[4] = 1;
+			base[ZP] = xstrtoul(optarg);
+			baseset[ZP] = 1;
 			break;
 		case '8':
-			base[8] = xstrtoul(optarg);
-			baseset[8] = 1;
+			base[COMMONDATA] = xstrtoul(optarg);
+			baseset[COMMONDATA] = 1;
 			break;
 		case '9':
-			base[9] = xstrtoul(optarg);
-			baseset[9] = 1;
+			base[BUFFERS] = xstrtoul(optarg);
+			baseset[BUFFERS] = 1;
 			break;
 		default:
 			fprintf(stderr, "%s: name ...\n", argv[0]);
