@@ -48,6 +48,8 @@ The segments are
   Common (unbanked) data. Used for things like the Fuzix kernel.
 :*BUFFERS*
   Buffer space. Used for things like the Fuzix kernel.
+:*OVERLAY*
+  Overlaid code space when banking
 
   In a split I/D system CODE, DISCARD and COMMON are placed in the I space,
   and the other segments in the D space.
@@ -66,8 +68,10 @@ will be placed after the previous segment in the order given.
 :*-i*
 Generate a split I/D binary, where code and data live in their own address
 space.
-:/*-m map*
+:*-m map*
 Generate a map file 'map' as well as the linker output.
+:*-o target*
+Set the output target for the link. This defaults to "a.out".
 :*-r*
 Generate a linked object file as output. The output is an object module that
 combines the object modules input. It retains relocation and symbol data so
@@ -92,6 +96,8 @@ Set the start address of the CODE segment.
 Set the start address of the DATA segment.
 :*-L addr*
 Set the start address of the LITERAL segment.
+:*-O addr*
+Set the start address of the OVERLAY segments. Also enables overlay mode.
 :*-R file*
 Output relocation data to a file. This can be combined with the binary
 output to produce relocatable binaries in other formats if needed.
@@ -103,6 +109,8 @@ Set the start address of the DISCARD segment
 Set the start address of the ZERO/DIRECT segment
 :*-8 addr*
 Set the start address of the COMMONDATA segment
+:*-9 addr*
+Set the start address of the BUFFERS segment
 
 ## USAGE
 Generate a Fuzix binary with symbols stripped and a map file.
