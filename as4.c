@@ -231,7 +231,7 @@ static void outreloc(register ADDR *a, int bytes)
 			/* low bits of 16 bit is an 8bit relocation with
 			   overflow suppressed */
 			/* Trap bogus relocation records */
-			if (a->a_segment == 15)
+			if (a->a_segment == 15 && pass == 3)
 				aerr(PHASE_ERROR);
 			outbyte(s | REL_SIMPLE | a->a_segment);
 		} else {
