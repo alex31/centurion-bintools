@@ -51,6 +51,13 @@ static void chksegment(ADDR *left, ADDR *right, int op)
 	if (m == TBR || m == TWR) {
 		if (op != '+' && op != '-')
 			aerr(MUST_BE_ABSOLUTE);
+		/* The register cannot have a symbol but the right hand
+		   side can. For the moment we only handle the simple
+		   cases of this */
+		if (left->a_sym && right->a_sym)
+			aerr(MUST_BE_ABSOLUTE);
+		if (right->a_sym)
+			left->a_sym = right->a_sym;
 		if ((right->a_type & TMMODE) == TUSER) {
 			left->a_segment = right->a_segment;
 			return;
@@ -302,7 +309,7 @@ void expr3(ADDR *ap, int c)
 	VALUE value;
 	char num[40];
 
-		
+
 	np1 = &num[0];
 	do {
 		if (isupper(c))
