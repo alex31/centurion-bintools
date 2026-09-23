@@ -171,6 +171,14 @@ static void outaw(uint16_t a)
 	outab(a >> 8);
 }
 
+/* If we wrote something like ld a,(ix) we need to
+   treat the implied offset as ABSOLUTE */
+static void outindex(ADDR *ap)
+{
+	if (ap->a_segment == UNKNOWN && ap->a_sym == NULL)
+		ap->a_segment = ABSOLUTE;
+	outrab(ap);
+}
 /*
  * Assemble one line.
  * The line in in "ib", the "ip"
@@ -203,7 +211,7 @@ loop:
 	if ((c=getnb()) == ':') {
 		sp = lookup(id, uhash, 1);
 		/* Pass 0 we compute the worst cases
-		   Pass 1 we generate according to those 
+		   Pass 1 we generate according to those
 		   Pass 2 we set them in stone (the shrinkage from pass 1
 					        allowing us a lot more)
 		   Pass 3 we output accodingly */
@@ -496,7 +504,7 @@ loop:
 		istuser(&a1);
 		outab(opcode >> 8);
 		outab(opcode);
-		outabchk2(&a1);
+		outrab(&a1);
 		break;
 
 	case TIMMED8N:
@@ -505,7 +513,7 @@ loop:
 		istuser(&a1);
 		outab(opcode >> 8);
 		outab(opcode);
-		outabchk2(&a1);
+		outrab(&a1);
 		break;
 
 	case TIO180:	/* out0 and in0 */
@@ -519,7 +527,7 @@ loop:
 				aerr(INVALID_REG);
 			outab(opcode >> 8);
 			outab(opcode | (reg << 3));
-			outabchk2(&a2);
+			outrab(&a2);
 			break;
 		}
 		aerr(INVALID_REG);
@@ -530,7 +538,7 @@ loop:
 		getaddr(opcode==OPIN ? &a2 : &a1);
 		if (a1.a_type==(TBR|A) && a2.a_type==(TUSER|TMINDIR)) {
 			outab(opcode);
-			outabchk2(&a2);
+			outrab(&a2);
 			break;
 		}
 		if ((a1.a_type&TMMODE)==TBR && a2.a_type==(TBR|TMINDIR|C)) {
@@ -653,7 +661,7 @@ loop:
 		getaddr(&a1);
 		if (a1.a_type == TUSER) {
 			outab(opcode | OPSUBI);
-			outabchk2(&a1);
+			outrab(&a1);
 			break;
 		}
 		if ((a1.a_type&TMMODE) == TBR) {
@@ -717,7 +725,7 @@ loop:
 		if (a1.a_type == (TBR|A)) {
 			if (a2.a_type == TUSER) {
 				outab(opcode | OPSUBI);
-				outabchk2(&a2);
+				outrab(&a2);
 				break;
 			}
 			if ((a2.a_type&TMMODE) == TBR) {
@@ -910,7 +918,7 @@ static void asmld(void)
 	if (mdst==TBR && msrc==TBR && (rdst!=M || rsrc!=M)) {
 		outab(0x40|(rdst<<3)|rsrc);
 		if (indexap != NULL)
-			outrab(indexap);
+			outindex(indexap);
 		return;
 	}
 	aerr(INVALID_REG);
@@ -988,13 +996,13 @@ static void outop(int op, ADDR *ap)
 	if ((op&0xFF00) != 0) {
 		outab(op>>8);
 		if (needisp != 0) {
-			outrab(ap);
+			outindex(ap);
 			needisp = 0;
 		}
 	}
 	outab(op);
 	if (needisp != 0)
-		outrab(ap);
+		outindex(ap);
 }
 
 /*
