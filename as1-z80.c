@@ -657,6 +657,27 @@ loop:
 		aerr(INVALID_REG);
 		break;
 
+	case TTST180:
+		require_z180();
+		getaddr(&a1);
+		/* TST nn */
+		if (a1.a_type == TUSER) {
+			outab(0xED);
+			outab(0x64);
+			outrab(&a1);
+			break;
+		}
+		/* TST (HL) */
+		if ((a1.a_type & TMMODE) == TBR) {
+			/* No TST (IX + n) */
+			if ((reg = a1.a_type & TMREG) == IX || reg == IY)
+				aerr(INVALID_REG);
+			outop(opcode | (reg << 3), &a1);
+			break;
+		}
+		aerr(INVALID_REG);
+		break;
+
 	case TSUB:
 		getaddr(&a1);
 		if (a1.a_type == TUSER) {
