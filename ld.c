@@ -1589,7 +1589,7 @@ int main(int argc, char *argv[])
 
 	arg0 = argv[0];
 
-	while ((opt = getopt(argc, argv, "rbvtsiu:o:m:f:R:A:B:C:D:O:S:X:Z:8:9:")) != -1) {
+	while ((opt = getopt(argc, argv, "rbvtsiu:o:m:f:R:A:B:C:D:L:O:S:X:Z:8:9:")) != -1) {
 		switch (opt) {
 		case 'r':
 			ldmode = LD_RFLAG;
