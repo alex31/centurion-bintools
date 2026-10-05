@@ -168,6 +168,8 @@ static unsigned fixup_6502(unsigned sseg, unsigned dseg, uint16_t addr)
     int i;
     unsigned sm, dm;
     uint8_t c;
+    uint16_t ta;
+
     /* Points to high byte so back pedal for little endian */
     addr -= 2;
     c = readb(sseg, addr);
@@ -182,11 +184,16 @@ static unsigned fixup_6502(unsigned sseg, unsigned dseg, uint16_t addr)
         }
         return 0;
     }
+
     /* Ok it's a valid block */
-    writeb(sseg, addr, 0xA9);	/* LDA low */
+    /* Address of branch */
+    ta = (readb(sseg, addr + 2) << 8) | readb(sseg, addr + 1);
+    /* Point to byte before as we will use RTS for the XY branch */
+    ta--;
+    writeb(sseg, addr, ta & 0xFF);	/* LDY low */
     /* Next byte is correct */
     /* Move high address up one */
-    writeb(sseg, addr + 3, readb(sseg, addr + 2));
+    writeb(sseg, addr + 3, ta >> 8);
     /* LDX */
     writeb(sseg, addr +2, 0xA2);
     /* We now LDA LDX for the value, and we need to JSR to the right bank operator */
@@ -196,23 +203,22 @@ static unsigned fixup_6502(unsigned sseg, unsigned dseg, uint16_t addr)
     dm = map_seg_to_bank(dseg);
     if (bankfunc[sm][dm] == 0)
         find_bank_function(sm, dm);
-    /* 8070 does increment and PC fetch so the jumps point to the address
-       before the target */
     writeb(sseg, addr + 5, bankfunc[sm][dm]);
     writeb(sseg, addr + 6, bankfunc[sm][dm] >> 8);
 
     /* The whole thing has now changed from
         JSR _foo JMP 3 NOP to
-        LDA #<_foo LDX #>_foo JSR __bank_n_m */
+        LDY #<_foo LDX #>_foo JSR __bank_n_m */
     return 1;
 }
 
 static void stub_6502(unsigned dseg, uint16_t addr)
 {
     /* Write record */
-    /* LD P2,=addr */
+    /* LDX >addr */
+    /* LDY <addr */
     addr--;	/* As we need to point to the byte before */
-    writeb(stubseg, stub_next, 0xA9);
+    writeb(stubseg, stub_next, 0xA0);
     writeb(stubseg, stub_next + 1, addr);
     writeb(stubseg, stub_next + 2, 0xA2);
     writeb(stubseg, stub_next + 3, addr >> 8);
