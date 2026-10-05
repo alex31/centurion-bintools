@@ -113,8 +113,12 @@ unsigned parse_register(unsigned c)
 		return 0;
 	}
 	c = getnb();
-	if (c != 'r')
+	/* PCR means relative value, PC means it's an address. Same op
+	   different interpretation */
+	if (c != 'r') {
 		unget(c);
+		return TWR|PC;
+	};
 	return TWR|PCR;
 }
 
@@ -138,6 +142,7 @@ unsigned register_to_mask(unsigned r)
 		return 0x10;
 	case TWR|Y:
 		return 0x20;
+	case TWR|PC:
 	case TWR|PCR:
 		return 0x80;
 	default:
@@ -167,6 +172,7 @@ unsigned register_to_nybble(unsigned r)
 		return 0x1;
 	case TWR|Y:
 		return 0x2;
+	case TWR|PC:
 	case TWR|PCR:
 		return 0x5;
 	default:
@@ -218,7 +224,8 @@ void prepost_required(ADDR *ap)
 {
 	if ((ap->a_type & TMMODE) != TWR ||
 		(ap->a_type & TMREG) == D ||
-		(ap->a_type & TMREG) == PCR) {
+		(ap->a_type & TMREG) == PCR ||
+		(ap->a_type & TMREG) == PC) {
 		qerr(NEED_PREPOST);
 	}
 }
@@ -467,9 +474,9 @@ unsigned map_register(unsigned r)
 	return 0xFF;	/* So bugs show */
 }
 
-unsigned can_shorten(ADDR *ap)
+unsigned can_shorten(ADDR *ap, unsigned abslit)
 {
-	if (ap->a_segment == ABSOLUTE)
+	if (abslit && ap->a_segment == ABSOLUTE)
 		return 1;
 	return 0;
 }
@@ -492,11 +499,28 @@ unsigned range_8bit(ADDR *ap)
    symbolic representations for pc relative. So it's valid to do
    write 12,pcr  meaning pc + 12,  offset .equ 12 offset,pcr meaning
    pc + 12 but also if fred is a symbol in the code etc that
-   fred,pcr means a reference to fred not fred + pc */
-void write_rel16(ADDR *ap)
+   fred,pc means a reference to fred not fred + pc */
+
+void write_rel8(ADDR *ap, unsigned abslit)
 {
-	/* Absolute value - outraw will write it as is */
-	if (ap->a_segment == ABSOLUTE) {
+	/* Absolute value - outraw will write it as is if
+	   abslit is set, otherwise assume it's an address. This matters
+	   for offset,reg and to distinguish ,pc and ,pcr */
+	if (ap->a_segment == ABSOLUTE && abslit) {
+		outrab(ap);
+		return;
+	}
+	/* The PC relative applies versus the byte *after* the two we are about to reloc */
+	ap->a_value -= 2;
+	outrabrel(ap);
+}
+
+void write_rel16(ADDR *ap, unsigned abslit)
+{
+	/* Absolute value - outraw will write it as is if
+	   abslit is set, otherwise assume it's an address. This matters
+	   for offset,reg and to distinguish ,pc and ,pcr */
+	if (ap->a_segment == ABSOLUTE && abslit) {
 		outraw(ap);
 		return;
 	}
@@ -509,7 +533,8 @@ void write_rel16(ADDR *ap)
 void write_data(ADDR *ap, unsigned size)
 {
 	unsigned t = ap->a_type & (TMADDR | TMINDIR);
-	unsigned r = map_register(ap->a_type & TMREG);
+	unsigned rc = ap->a_type & TMREG;
+	unsigned r = map_register(rc);
 
 	if (t == TIMMED) {
 		if (size == 1)
@@ -526,29 +551,34 @@ void write_data(ADDR *ap, unsigned size)
 		outraw(ap);
 		return;
 	}
+	/* TODO: split PC and PCR */
 	/* PC relative indexing is a bit different to the others */
-	if (t == TINDEX && (ap->a_type & TMREG) == PCR) {
-		if (can_shorten(ap) && range_8bit(ap)) {
-			outab(0x8C);
-			outrab(ap);
+	if (rc == PCR || rc == PC) {
+		unsigned abslit = rc == PCR;
+
+		if (t == TINDEX ) {
+			if (can_shorten(ap, abslit) && range_8bit(ap)) {
+				outab(0x8C);
+				write_rel8(ap, abslit);
+				return;
+			}
+			outab(0x8D);
+			write_rel16(ap, abslit);
 			return;
 		}
-		outab(0x8D);
-		write_rel16(ap);
-		return;
-	}
-	if (t == (TINDEX|TMINDIR) && (ap->a_type & TMREG) == PCR) {
-		if (can_shorten(ap) && range_8bit(ap)) {
-			outab(0x9C);
-			outrab(ap);
+		if (t == (TINDEX|TMINDIR)) {
+			if (can_shorten(ap, abslit) && range_8bit(ap)) {
+				outab(0x9C);
+				write_rel8(ap, abslit);
+				return;
+			}
+			outab(0x9D);
+			write_rel16(ap, abslit);
 			return;
 		}
-		outab(0x9D);
-		write_rel16(ap);
-		return;
 	}
 	if (t == TINDEX) {
-		if (can_shorten(ap)) {
+		if (can_shorten(ap, 1)) {
 			if (ap->a_value == 0) {
 				outab(0x84 | r);
 				return;
@@ -569,7 +599,7 @@ void write_data(ADDR *ap, unsigned size)
 		return;
 	}
 	if (t == (TMINDIR|TINDEX)) {
-		if (can_shorten(ap)) {
+		if (can_shorten(ap, 1)) {
 			if (ap->a_value == 0) {
 				outab(0x94 | r);
 				return;
@@ -824,7 +854,8 @@ loop:
 			/* write_rel16 assumes 2 byte offset and we don't
 			   want it in this case */
 			a1.a_value += 2;
-			write_rel16(&a1);
+			/* Explicitly requested relative */
+			write_rel16(&a1, 0);
 		} while ((c=getnb()) == ',');
 		unget(c);
 		break;
@@ -852,7 +883,7 @@ loop:
 				outab(0x10);
 				outab(opcode);
 			}
-			write_rel16(&a1);
+			write_rel16(&a1, 0);
 		} else {
 			a1.a_value -= dot[segment];
 			a1.a_value -= 2;
@@ -861,13 +892,14 @@ loop:
 		}
 		break;
 	case TLBRA:
+		/* This and BRA raise some questions about how abs is
+		   interpreted. We go with BRA 3 meaning address 3 not
+		   3 bytes which apparently is convention */
 		getaddr(&a1);
-		if (a1.a_segment != segment && a1.a_segment != UNKNOWN)
-			aerr(BRA_RANGE);
 		if (opcode >> 8)
 			outab(opcode >> 8);
 		outab(opcode);
-		write_rel16(&a1);
+		write_rel16(&a1, 0);
 		break;
 	/* No following data. Instruction may be one or two bytes long */
 	case TIMP:

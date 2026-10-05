@@ -710,7 +710,8 @@ typedef	uint16_t	VALUE;		/* For symbol values */
 #define	X	6
 #define	Y	7
 #define	S	8
-#define PCR	9
+#define PC	9		/* PC and PCR same register different */
+#define PCR	10		/* interpretations of data */
 
 /*
  *	Error message numbers: FIXME - sort general first
