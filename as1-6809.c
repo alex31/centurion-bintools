@@ -863,7 +863,7 @@ loop:
 	case TBRA:
 		getaddr(&a1);
 		/* Allow BRA #3 for example to branch forward 3 bytes */
-		if (a1.a_type & TIMMED) {
+		if ((a1.a_type & TMADDR) == TIMMED) {
 			outab(opcode);
 			outrab(&a1);
 			return;
@@ -906,7 +906,7 @@ loop:
 			outab(opcode >> 8);
 		outab(opcode);
 		/* Allow LBRA #3 for example to branch forward 3 bytes */
-		if (a1.a_type & TIMMED) {
+		if ((a1.a_type & TMADDR) == TIMMED) {
 			outraw(&a1);
 			return;
 		}
