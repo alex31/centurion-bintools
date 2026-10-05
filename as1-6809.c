@@ -113,7 +113,7 @@ unsigned parse_register(unsigned c)
 		return 0;
 	}
 	c = getnb();
-	/* PCR means relative value, PC means it's an address. Same op
+	/* PC means relative value, PCR means it's an address. Same op
 	   different interpretation */
 	if (c != 'r') {
 		unget(c);
@@ -551,11 +551,11 @@ void write_data(ADDR *ap, unsigned size)
 		outraw(ap);
 		return;
 	}
-	/* TODO: split PC and PCR */
 	/* PC relative indexing is a bit different to the others */
 	if (rc == PCR || rc == PC) {
-		unsigned abslit = rc == PCR;
-
+		unsigned abslit = rc == PC;
+		/* Q: should, PC simply always use the value as an
+		      offset ? FIXME */
 		if (t == TINDEX ) {
 			if (can_shorten(ap, abslit) && range_8bit(ap)) {
 				outab(0x8C);
@@ -862,6 +862,12 @@ loop:
 
 	case TBRA:
 		getaddr(&a1);
+		/* Allow BRA #3 for example to branch forward 3 bytes */
+		if (a1.a_type & TIMMED) {
+			outab(opcode);
+			outrab(&a1);
+			return;
+		}
 		disp = a1.a_value-dot[segment]-2;
 		if (pass == 3)
 			c = getnextrel();
@@ -899,6 +905,11 @@ loop:
 		if (opcode >> 8)
 			outab(opcode >> 8);
 		outab(opcode);
+		/* Allow LBRA #3 for example to branch forward 3 bytes */
+		if (a1.a_type & TIMMED) {
+			outraw(&a1);
+			return;
+		}
 		write_rel16(&a1, 0);
 		break;
 	/* No following data. Instruction may be one or two bytes long */
