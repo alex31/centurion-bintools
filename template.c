@@ -7,15 +7,15 @@
 #include <unistd.h>
 #include <ctype.h>
 
-void badmarker(void)
+void badmarker(char c)
 {
-    fputs("Missing % marker\n", stderr);
+    fprintf(stderr, "Missing %% marker '%c'\n", c);
     exit(1);
 }
 
-void badsize(void)
+void badsize(unsigned n, unsigned max)
 {
-    fputs("Substitution out of range\n", stderr);
+    fprintf(stderr, "Substitution %%%u out of range (max %%%u)\n", n, max);
     exit(1);
 }
 
@@ -41,15 +41,19 @@ void process_sub(int argc, char *argv[])
     c = getchar();
     if (c == EOF)
         badeof();
+    if (c == '%') {
+        putchar(c);
+        return;
+    }
     while(isdigit(c)) {
         n *= 10;
         n += (c - '0');
         c = getchar();
     }
     if (c != '%')
-        badmarker();
+        badmarker(c);
     if (n < 1 || n >= argc)
-        badsize();
+        badsize(n, argc - 1);
 
     p = argv[n];
     while(*p) {
