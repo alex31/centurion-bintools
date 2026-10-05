@@ -203,12 +203,8 @@ static void outreloc(register ADDR *a, int bytes)
 	/* We must insert a relocation record for anything relocatable,
 	   but also for anything which is a symbol, as the linker may
 	   need to do absolute resolution between modules */
-#if 0
-	/* TODO: further review but this seems wrong in the case of
-		foo .equ n and a reloc for relative */
+
 	if (a->a_segment != ABSOLUTE || a->a_sym) {
-#endif
-	if (1) {
 		outbyte(REL_ESC);
 		check_store_allowed(segment, 1);
 #ifdef TARGET_RELOC_OVERFLOW_OK
