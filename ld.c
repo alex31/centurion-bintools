@@ -1161,7 +1161,7 @@ static void relocate_stream(struct object *o, int segment, FILE * op)
 		if (code & REL_SIMPLE) {
 			seg = code & S_SEGMENT;
 			/* Check entry is valid */
-			if (seg == ABSOLUTE || seg >= OSEG || size > MAXSIZE) {
+			if ((seg == ABSOLUTE  && !pcrel) || seg >= OSEG || size > MAXSIZE) {
 				fprintf(stderr, "%s invalid reloc %d %d\n",
 					o->path, seg, size);
 				fprintf(stderr, "pcrel %u over %u high %u\n",
