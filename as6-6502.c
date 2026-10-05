@@ -15,37 +15,9 @@ SYM	sym[] = {
 	{	0,	"defw",		TDEFW,		XXXX	},
 	{	0,	"defs",		TDEFS,		XXXX	},
 	{	0,	"defm",		TDEFM,		XXXX	},
-	{	0,	"org",		TORG,		XXXX	},
-	{	0,	"equ",		TEQU,		XXXX	},
-	{	0,	"export",	TEXPORT,	XXXX	},
-	{	0,	".byte",	TDEFB,		XXXX	},
-	{	0,	".word",	TDEFW,		XXXX	},
-	{	0,	".blkb",	TDEFS,		XXXX	},
-	{	0,	".ds",		TDEFS,		XXXX	},
-	{	0,	".ascii",	TDEFM,		XXXX	},
-	{	0,	".org",		TORG,		XXXX	},
-	{	0,	".equ",		TEQU,		XXXX	},
-	{	0,	".export",	TEXPORT,	XXXX	},
-	{	0,	"abs",		TSEGMENT,	ABSOLUTE	},
-	{	0,	"code",		TSEGMENT,	CODE	},
-	{	0,	"data",		TSEGMENT,	DATA	},
-	{	0,	"bss",		TSEGMENT,	BSS	},
 	{	0,	"zp",		TSEGMENT,	ZP	},
-	{	0,	"discard",	TSEGMENT,	DISCARD	},
-	{	0,	"common",	TSEGMENT,	COMMON	},
-	{	0,	"literal",	TSEGMENT,	LITERAL	},
-	{	0,	"commondata",	TSEGMENT,	COMMONDATA },
-	{	0,	"buffers",	TSEGMENT,	BUFFERS	},
-	{	0,	".abs",		TSEGMENT,	ABSOLUTE	},
-	{	0,	".code",	TSEGMENT,	CODE	},
-	{	0,	".data",	TSEGMENT,	DATA	},
-	{	0,	".bss",		TSEGMENT,	BSS	},
 	{	0,	".zp",		TSEGMENT,	ZP	},
-	{	0,	".discard",	TSEGMENT,	DISCARD	},
-	{	0,	".common",	TSEGMENT,	COMMON	},
-	{	0,	".literal",	TSEGMENT,	LITERAL	},
-	{	0,	".commondata",	TSEGMENT,	COMMONDATA },
-	{	0,	".buffers",	TSEGMENT,	BUFFERS	},
+#include "as-std.h"
 	{	0,	".6502",	TCPU,		CPU_6502	},
 	{	0,	".65c02",	TCPU,		CPU_65C02	},
 	{	0,	".65c816",	TCPU,		CPU_65C816	},
@@ -53,7 +25,7 @@ SYM	sym[] = {
 	{	0,	".i16",		TI,		2	},
 	{	0,	".a8",		TA,		1	},
 	{	0,	".a16",		TA,		2	},
-	
+
 	/* Class zero instructions: Those ending 00 */
 	/* X form is thode that grow imm, ab inx,x and dp index x on
 	  65C02/65C816 */
@@ -64,7 +36,7 @@ SYM	sym[] = {
 	{	0,	"ldy",		TCLASS0,	0xA0	},
 	{	0,	"cpy",		TCLASS0,	0xC0	},
 	{	0,	"cpx",		TCLASS0,	0xE0	},
-	
+
 
 	/* Class one instructions: Those ending 01 */
 	/* Most get dp indirect on C02, long, sr and sr indexed on 816 */
@@ -76,7 +48,7 @@ SYM	sym[] = {
 	{	0,	"lda",		TCLASS1,	0xA1	},
 	{	0,	"cmp",		TCLASS1,	0xC1	},
 	{	0,	"sbc",		TCLASS1,	0xE1	},
-	
+
 	/* Class two instructions: Those ending 10 */
 	{	0,	"asl",		TCLASS2,	0x02	},
 	{	0,	"rol",		TCLASS2,	0x22	},
@@ -98,7 +70,7 @@ SYM	sym[] = {
         {	0,	"bne",		TREL8,		0xD0	},
         {	0,	"beq",		TREL8,		0xF0	},
 
-        /* x8 instructions */        
+        /* x8 instructions */
         {	0,	"php",		TIMPL,		0x08	},
         {	0,	"clc",		TIMPL,		0x18	},
         {	0,	"plp",		TIMPL,		0x28	},
@@ -115,7 +87,7 @@ SYM	sym[] = {
         {	0,	"cld",		TIMPL,		0xD8	},
         {	0,	"inx",		TIMPL,		0xE8	},
         {	0,	"sed",		TIMPL,		0xF8	},
-        
+
         /* xA instructions */
         {	0,	"txa",		TIMPL,		0x8A	},
         {	0,	"txs",		TIMPL,		0x9A	},
@@ -123,7 +95,7 @@ SYM	sym[] = {
         {	0,	"tsx",		TIMPL,		0xBA	},
         {	0,	"dex",		TIMPL,		0xCA	},
         {	0,	"nop",		TIMPL,		0xEA	},
-        
+
         /* Weird stuff */
         {	0,	"brk",		TBRK,		0x00	},
         {	0,	"jsr",		TJSR,		0x20	},
@@ -188,7 +160,7 @@ SYM	sym[] = {
 
 };
 
-        
+
 /*
  * Set up the symbol table.
  * Sweep through the initializations
