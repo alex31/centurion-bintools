@@ -26,13 +26,15 @@ SYM	*uhash[NHASH];
 int	pass;
 int	line;
 jmp_buf	env;
-int	debug_write = 1 ;
+int	debug_write = 1;
 int	noobj;
 int	cpu_flags = ARCH_CPUFLAGS;
+int	retry_pass1 = 1;	/* Number of times to run pass1 for
+				   targets doing branch reduction */
 
 static void usage(void)
 {
-	fprintf(stderr, "as [-o object.o] source.s.\n");
+	fprintf(stderr, "as [-l list] [-o object.o] [-r tries] source.s.\n");
 	exit(1);
 }
 
@@ -107,13 +109,20 @@ int main(int argc, char *argv[])
 	int opt;
 
 	/* Lots of options need adding yet */
-	while ((opt = getopt(argc, argv, "o:l:")) != -1) {
+	while ((opt = getopt(argc, argv, "o:l:r:")) != -1) {
 		switch (opt) {
 		case 'o':
 			ofn = optarg;
 			break;
 		case 'l':
 			listname = optarg;
+			break;
+		case 'r':
+			retry_pass1 = atoi(optarg);
+			if (retry_pass1 == 0) {
+				fprintf(stderr, "%s: invalid number of retries.\n", argv[0]);
+				exit(1);
+			}
 			break;
 		default:
 			usage();
@@ -184,6 +193,8 @@ int main(int argc, char *argv[])
 		/* Don't continue once we know we failed */
 		if (noobj)
 			break;
+		if (pass == 1 && --retry_pass1)
+			--pass;
 	}
 	if (!noobj) {
 		pass = 3;
@@ -193,6 +204,5 @@ int main(int argc, char *argv[])
 			perror(ofn);
 	}
 	/* Return an error code if no object was created */
-	exit(noobj);
+	return noobj;
 }
-
