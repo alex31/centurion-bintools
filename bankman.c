@@ -218,10 +218,11 @@ static void stub_6502(unsigned dseg, uint16_t addr)
     /* LDX >addr */
     /* LDY <addr */
     addr--;	/* As we need to point to the byte before */
+    printf("stub_6502 addr used will be %04x\n", addr);
     writeb(stubseg, stub_next, 0xA2);
-    writeb(stubseg, stub_next + 1, addr);
+    writeb(stubseg, stub_next + 1, addr >> 8);
     writeb(stubseg, stub_next + 2, 0xA0);
-    writeb(stubseg, stub_next + 3, addr >> 8);
+    writeb(stubseg, stub_next + 3, addr);
     /* JMP stubfunc */
     writeb(stubseg, stub_next + 4, 0x4C);
     writeb(stubseg, stub_next + 5, stubfunc[dseg]);
