@@ -78,7 +78,9 @@ static void make_zp(ADDR *ap)
 		qerr(RANGE);
 		return;
 	}
-	ap->a_segment = ZP;
+	if (ap->a_segment != ABSOLUTE)
+		ap->a_segment = ZP;
+	/* Error weird segments ? */
 	return;
 }
 
@@ -89,6 +91,8 @@ static void expr1_zp(ADDR *ap)
 	if (c != '@')
 		unget(c);
 	expr1(ap, LOPRI, 0);
+	if (ap->a_type == TUSER)
+		ap->a_type = TZP;
 	make_zp(ap);
 }
 
@@ -99,8 +103,13 @@ static void expr1_maybe_zp(ADDR *ap)
 	if (c != '@')
 		unget(c);
 	expr1(ap, LOPRI, 0);
-	if (c == '@')
+	if (c == '@') {
+		if (ap->a_type == TUSER) {
+			ap->a_type &= ~TMADDR;
+			ap->a_type |= TZP;
+		}
 		make_zp(ap);
+	}
 }
 
 /*
@@ -135,7 +144,15 @@ void getaddr(ADDR *ap)
 			ap->a_flags |= A_HIGH;
 		else
 			unget(c);
-		expr1_maybe_zp(ap);
+		c = getnb();
+		if (c == '@') {
+			expr1(ap, LOPRI, 0);
+			if (ap->a_segment != ABSOLUTE)
+				ap->a_segment = ZP;
+		} else {
+			unget(c);
+			expr1(ap, LOPRI, 0);
+		}
 		istuser(ap);
 		return;
 	}
@@ -151,9 +168,10 @@ void getaddr(ADDR *ap)
 				expr1(&tmp, LOPRI, 0);
 				if ((reg = requirexy(&tmp)) == 0)
 					aerr(INVALID_REG);
-				if (reg == Y)
+				if (reg == Y) {
+					ap->a_type &= ~TMADDR;
 					ap->a_type |= TZPY_IND;
-				else
+				} else
 					aerr(INVALID_REG);
 				return;
 			}
@@ -170,8 +188,10 @@ void getaddr(ADDR *ap)
 				aerr(INVALID_REG);
 			if (reg == Y)
 				aerr(INVALID_REG);
-			else
+			else {
+				ap->a_type &= ~TMADDR;
 				ap->a_type |= TZPX_IND;
+			}
 			return;
 		}
 		aerr(BRACKET_EXPECTED);
@@ -198,12 +218,12 @@ void getaddr(ADDR *ap)
 		if ((reg = requirexy(&tmp)) == 0)
 			aerr(INVALID_REG);
 		if (reg == X) {
-			if (ap->a_segment == ZP)
+			if ((ap->a_type & TMADDR) == TZP || ap->a_segment == ZP)
 				ap->a_type |= TZPX;
 			else
 				ap->a_type |= TABSX;
 		} else {
-			if (ap->a_segment == ZP)
+			if ((ap->a_type & TMADDR) == TZP || ap->a_segment == ZP)
 				ap->a_type |= TZPY;
 			else
 				ap->a_type |= TABSY;
@@ -214,7 +234,7 @@ void getaddr(ADDR *ap)
 	if ((ap->a_type & TMMODE) == TBR && (ap->a_type & TMREG) == A)
 		ap->a_type = TACCUM;
 	else { /* absolute or zp */
-		if (ap->a_segment == ZP)
+		if ((ap->a_type & TMADDR) == TZP || ap->a_segment == ZP)
 			ap->a_type = TZP;
 		else
 			ap->a_type = TUSER|TMINDIR;
@@ -789,13 +809,15 @@ loop:
 		}
 		reg = class2_mask(opcode, a1.a_type, 0);
 		/* No immediates */
-		if (reg == 0)
-			aerr(BADMODE);
 		outab((opcode  & 0xFF)| (reg << 2));
-		if (reg < 2)
+		/* ZP, ZP,X */
+		if (reg == 1 || reg == 5)
 			outrab(&a1);
+		/* absolute, absolute,x */
 		else if (reg == 3 || reg == 7)
 			outraw(&a1);
+		else
+			aerr(BADMODE);
 		break;
 	case TCLASS2Y:
 		/* Like class 2 but has ,y not ,x forms */
