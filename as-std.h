@@ -37,3 +37,4 @@
 	{	0,	".overlay2",	TSEGMENT,	OVERLAY + 1},
 	{	0,	".overlay3",	TSEGMENT,	OVERLAY + 2},
 	{	0,	".overlay4",	TSEGMENT,	OVERLAY + 3},
+	{	0,	".overlay5",	TSEGMENT,	OVERLAY + 4},

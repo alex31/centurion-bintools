@@ -1039,9 +1039,8 @@ static void record_reloc(struct object *o, unsigned high, unsigned size, unsigne
 
 static unsigned is_code(unsigned seg)
 {
-	/* TODO: when we add banking/overlays this will need to change */
 	if (seg == CODE || seg == DISCARD || seg == COMMON || (seg >= OVERLAY &&
-	seg < PCREL))
+	seg < UNKNOWN))
 		return 1;
 	return 0;
 }

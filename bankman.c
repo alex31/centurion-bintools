@@ -130,7 +130,7 @@ static unsigned map_seg_to_bank(unsigned seg)
 {
     if (!is_overlay(seg))
         return '0';
-    if (seg >= OVERLAY && seg < PCREL)
+    if (seg >= OVERLAY && seg < UNKNOWN)
         return '1' + seg - OVERLAY;
     /* Common calls into banks need to save/restore old bank which will
        need to be established at runtime */

@@ -3,25 +3,25 @@
 
 #ifdef ARCH32
 typedef uint32_t	addr_t;
-#define MAGIC_OBJ		0x5D1B
-#define MAGIC_OBJ_SWAPPED	0x1B5D
+#define MAGIC_OBJ		0x5D1C
+#define MAGIC_OBJ_SWAPPED	0x1C5D
 #define NAMELEN			32
 #else
 typedef uint16_t	addr_t;
 /* Long name is used for cross building and non 8bit environments. In an
    8bit environment longer names are just too expensive */
 #ifdef OBJ_LONGNAME
-#define MAGIC_OBJ		0x4D1B
-#define MAGIC_OBJ_SWAPPED	0x1B4D
+#define MAGIC_OBJ		0x4D1C
+#define MAGIC_OBJ_SWAPPED	0x1C4D
 #define NAMELEN			32
 #else
-#define MAGIC_OBJ		0x3D1A
-#define MAGIC_OBJ_SWAPPED	0x1A3D
+#define MAGIC_OBJ		0x3D1B
+#define MAGIC_OBJ_SWAPPED	0x1B3D
 #define NAMELEN			16
 #endif
 #endif
 
-#define OSEG	14
+#define OSEG	15
 
 struct objhdr
 {
@@ -197,11 +197,9 @@ struct objhdr
 #define LITERAL		7		/* Literals (mostly a compiler helper) */
 #define COMMONDATA	8		/* Common for writables */
 #define BUFFERS		9		/* Buffers for kernel */
-#define OVERLAY		10		/* 10-13 are used for overlays */
-/* Special cases 14+ don't exist as real segments */
-#define PCREL		14		/* assumed signed */
-/* and 15 is 'any' */
+#define OVERLAY		10		/* 10-14 are used for overlays */
+/* 15 is 'any' and used internally for now*/
 
-#define SEGNAME		"ACDBZXSLsb1234PU"
+#define SEGNAME		"ACDBZXSLsb12345U"
 
 #endif
