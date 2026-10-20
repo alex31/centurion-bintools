@@ -218,15 +218,21 @@ void getaddr(ADDR *ap)
 		if ((reg = requirexy(&tmp)) == 0)
 			aerr(INVALID_REG);
 		if (reg == X) {
-			if ((ap->a_type & TMADDR) == TZP || ap->a_segment == ZP)
+			if ((ap->a_type & TMADDR) == TZP || ap->a_segment == ZP) {
+				ap->a_type &= ~TMADDR;
 				ap->a_type |= TZPX;
-			else
+			} else {
+				ap->a_type &= ~TMADDR;
 				ap->a_type |= TABSX;
+			}
 		} else {
-			if ((ap->a_type & TMADDR) == TZP || ap->a_segment == ZP)
+			if ((ap->a_type & TMADDR) == TZP || ap->a_segment == ZP) {
+				ap->a_type &= ~TMADDR;
 				ap->a_type |= TZPY;
-			else
+			} else {
+				ap->a_type &= ~TMADDR;
 				ap->a_type |= TABSY;
+			}
 		}
 		return;
 	}
