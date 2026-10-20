@@ -42,6 +42,11 @@ static char segname[] = SEGNAME;
 static uint16_t bankfunc[5][5];
 static uint16_t stubfunc[5];
 static unsigned stubseg;
+static unsigned lastlow;
+static unsigned size;
+static unsigned high;
+
+static unsigned verbose;
 
 static void bad_entry(void)
 {
@@ -178,8 +183,8 @@ static unsigned fixup_6502(unsigned sseg, unsigned dseg, uint16_t addr)
         if (c == 0x20 || c == 0x4C) {
             fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
             for (i = 0; i <= 7; i++)
-                printf("%02X ", readb(sseg, addr + i));
-            printf("\n");
+                fprintf(stderr, "%02X ", readb(sseg, addr + i));
+            fprintf(stderr, "\n");
             exit(1);
         }
         return 0;
@@ -218,7 +223,8 @@ static void stub_6502(unsigned dseg, uint16_t addr)
     /* LDX >addr */
     /* LDY <addr */
     addr--;	/* As we need to point to the byte before */
-    printf("stub_6502 addr used will be %04x\n", addr);
+    if (verbose)
+        printf("stub_6502 addr used will be %04x\n", addr);
     writeb(stubseg, stub_next, 0xA2);
     writeb(stubseg, stub_next + 1, addr >> 8);
     writeb(stubseg, stub_next + 2, 0xA0);
@@ -242,8 +248,8 @@ static unsigned fixup_6803(unsigned sseg, unsigned dseg, uint16_t addr)
         if (c == 0xBD || c == 0x7E) {
             fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
             for (i = -2; i <= 2; i++)
-                printf("%02X ", readb(sseg, addr + i));
-            printf("\n");
+                fprintf(stderr, "%02X ", readb(sseg, addr + i));
+            fprintf(stderr, "\n");
             exit(1);
         }
         /* Use stubs if need be */
@@ -290,8 +296,8 @@ static unsigned fixup_6809(unsigned sseg, unsigned dseg, uint16_t addr)
         if (c == 0x35 || c == 0x7E) {
             fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
             for (i = -3; i <= 3; i++)
-                printf("%02X ", readb(sseg, addr + i));
-            printf("\n");
+                fprintf(stderr, "%02X ", readb(sseg, addr + i));
+            fprintf(stderr, "\n");
             exit(1);
         }
         return 0;
@@ -342,8 +348,8 @@ static unsigned fixup_8070(unsigned sseg, unsigned dseg, uint16_t addr)
         if (c == 0x20 || c == 0x24) {
             fprintf(stderr, "Unable to auto-relocate %u:%04X\n", sseg, addr);
             for (i = -2; i <= 2; i++)
-                printf("%02X ", readb(sseg, addr + i));
-            printf("\n");
+                fprintf(stderr, "%02X ", readb(sseg, addr + i));
+            fprintf(stderr, "\n");
             exit(1);
         }
         return 0;
@@ -455,19 +461,46 @@ static uint16_t find_stub(unsigned sseg, unsigned dseg, uint16_t addr)
     cpu->stub(ds, addr);
     nstub++;
     stub_next += cpu->stub_size;
-    printf("New stub in segment %c for routine at %c:%04x is %04X\n",
-      segname[sseg], segname[dseg], addr, s->stub);
+    if (verbose)
+        fprintf(stderr, "New stub in segment %c for routine at %c:%04x is %04X\n",
+          segname[sseg], segname[dseg], addr, s->stub);
     return s->stub;
 }
 
 static void insert_stub(unsigned sseg, unsigned dseg, uint16_t addr)
 {
-    uint16_t dp = readb(sseg, addr - 1) | (readb(sseg, addr) << 8);
-    uint16_t stub = find_stub(sseg, dseg, dp);
-    writeb(sseg, addr - 1, stub);
-    writeb(sseg, addr, stub >> 8);
-    printf("Adding stub in segment %c for routine at %c:%04x\n",
-      segname[sseg], segname[dseg], addr);
+    uint16_t dp;
+    uint16_t stub;
+
+    /* 6502 stubs can be split across the pattern
+         LDA #<ptr LDX #>ptr */
+    if (high) {
+        if (lastlow && addr - lastlow < 4) {
+            dp = readb(sseg, lastlow) | (readb(sseg, addr) << 8);
+            fprintf(stderr, "split stub at %04X and %04X for %04X\n",
+                lastlow, addr, dp);
+            fprintf(stderr, "%02X %02X %02X %02X %02X\n",
+                readb(sseg, addr - 3),
+                readb(sseg, addr - 2),
+                readb(sseg, addr - 1),
+                readb(sseg, addr - 0),
+                readb(sseg, addr + 1));
+            stub = find_stub(sseg, dseg, dp);
+            writeb(sseg, lastlow, stub); writeb(sseg, addr, stub >> 8);
+        } else {
+            fprintf(stderr, "Split stub at %04X has no low member.\n",
+                addr);
+            exit(1);
+        }
+    } else {
+        dp = readb(sseg, addr - 1) | (readb(sseg, addr) << 8);
+        stub = find_stub(sseg, dseg, dp);
+        writeb(sseg, addr - 1, stub);
+        writeb(sseg, addr, stub >> 8);
+    }
+    if (verbose)
+        fprintf(stderr, "Adding stub in segment %c for routine at %c:%04x\n",
+              segname[sseg], segname[dseg], addr);
 }
 
 static void process_reloc(int fd)
@@ -480,6 +513,7 @@ static void process_reloc(int fd)
         switch(c[0]) {
         /* ZP relocations are uninteresting */
         case 0:
+            lastlow = 0;
             break;
         case 1:
             if (is_code(sseg)) {
@@ -495,8 +529,9 @@ static void process_reloc(int fd)
                 if (!is_code(dseg))
                     continue;
                 /* Code is always mapped and our base segment */
-                printf("Fixup from in seg %u ref %u\n",
-                    sseg, dseg);
+                if (verbose)
+                    fprintf(stderr, "Fixup from in seg %u ref %u\n",
+                        sseg, dseg);
                 r = cpu->fixup(sseg, dseg, (c[1] << 8) | c[2]);
                 /* Fix up error */
                 /* Was fixed up */
@@ -511,6 +546,7 @@ static void process_reloc(int fd)
                         insert_stub(sseg, dseg, (c[1] << 8) | c[2]);
                     /* Data to data references are unbanked and don't matter */
             }
+            lastlow = 0;
             break;
         case 2:
             /* Sets the segmenmts for reloc 1 above */
@@ -522,6 +558,16 @@ static void process_reloc(int fd)
                 exit(1);
             }
             continue;
+        case 3:
+            /* We need the flags for split stubs on things like 6502 */
+            high = c[1];
+            size = c[2];
+            continue;
+        case 4:
+            /* Last low address half used for 6502 fixups where a stub
+               can be split across two loads */
+            lastlow = (c[1] << 8) | c[2];
+            break;
         default:
             fprintf(stderr, "Unknown reloc record %u\n", c[0]);
             exit(1);
@@ -554,7 +600,7 @@ static struct cpu *find_cpu(const char *p)
 
 void usage(void)
 {
-    puts("bankman binary map relocs cpu");
+    puts("bankman [-v] binary map relocs cpu");
     exit(1);
 }
 
@@ -563,6 +609,11 @@ int main(int argc, char *argv[])
     int reloc;
     unsigned dummy;
 
+    if (argv[1] && strcmp(argv[1], "-v") == 0) {
+        verbose = 1;
+        argv++;
+        argc--;
+    }
     if (argc != 5)
         usage();
 

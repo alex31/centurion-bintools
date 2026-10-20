@@ -1003,8 +1003,15 @@ static void record_reloc(struct object *o, unsigned high, unsigned size, unsigne
 		addr++;
 #endif
 
-	if (size == 1 && !high)
+	if (seg != ZP && size == 1 && !high) {
+		/* Record the low address for the split relocs on 6502 */
+		if (overlays) {
+			fputc(4, relocf);
+			fputc(addr >> 8, relocf);
+			fputc(addr, relocf);
+		}
 		return;
+	}
 	/* Record the address of the high byte */
 #ifdef ARCH32
 	/* 32bit relocs work differently, record the actual addr */
@@ -1017,6 +1024,9 @@ static void record_reloc(struct object *o, unsigned high, unsigned size, unsigne
 	/* For overlays we record relocations in full as
 		src eg, dst seg, addr.16 */
 	if (overlays) {
+		fputc(3, relocf);
+		fputc(high, relocf);
+		fputc(size, relocf);
 		fputc(2, relocf);
 		fputc(segment, relocf);
 		fputc(seg, relocf);
