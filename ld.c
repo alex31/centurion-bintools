@@ -842,6 +842,7 @@ static void set_segment_bases(void)
 			insert_internal_symbol("__overlay2_size", ABSOLUTE, size[OVERLAY + 1]);
 			insert_internal_symbol("__overlay3_size", ABSOLUTE, size[OVERLAY + 2]);
 			insert_internal_symbol("__overlay4_size", ABSOLUTE, size[OVERLAY + 3]);
+			insert_internal_symbol("__overlay5_size", ABSOLUTE, size[OVERLAY + 4]);
 		}
 	}
 	/* Now set the base of each object appropriately */
