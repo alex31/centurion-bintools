@@ -20,8 +20,8 @@ Should be reasonably stable, not yet heavily used.
 
 ### 6502
 
-Used by the Fuzix 65C816 compiler. Reasonably complete except for 24bit
-65C816 operation support which needs work (mostly to sort out linker
+Used by the Fuzix 6502 and 65C816 compiler. Reasonably complete except for
+24bit 65C816 operation support which needs work (mostly to sort out linker
 support)
 
 ### 6800
@@ -36,6 +36,10 @@ anger.
 ### 8008
 
 Support for the Intel 8008 processor. Should be stable.
+
+### 8070
+
+INS 8070. Used for the Fuzix port to the 8070 processor.
 
 ### 8080
 
@@ -59,6 +63,10 @@ Electrodata EE200, Warrex CPU 5 / 6.
 
 68HC11.Should be fairly solid 
 
+### TMS7000
+
+Beta grade. Should be stable
+
 ### Z8
 
 Used by the Z8 Compiler.
@@ -80,10 +88,6 @@ Motorola 6805 and 68HC08 (not 6808 - see 6800 for that)
 ### 8060
 
 The INS8060 (SC/MP)
-
-### 8070
-
-INS 8070
 
 ### CP1600
 
@@ -120,6 +124,3 @@ Early scoping only to prototype non 16bit sizes
 
 Zilog Z8 related processor. Needs a lot more testing.
 
-### TMS7000
-
-Work in progress
