@@ -552,7 +552,7 @@ static void process_reloc(int fd)
             /* Sets the segmenmts for reloc 1 above */
             sseg = c[1];
             dseg = c[2];
-            if (sseg > 13 || dseg > 13) {
+            if (sseg > 14 || dseg > 14) {
                 fprintf(stderr, "Invalid relocation segment record %02X %02X\n",
                     c[1], c[2]);
                 exit(1);
