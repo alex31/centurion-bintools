@@ -175,6 +175,18 @@ static unsigned fixup_6502(unsigned sseg, unsigned dseg, uint16_t addr)
     uint8_t c;
     uint16_t ta;
 
+    /* Split address pair so a stub is needed */
+    if (lastlow == addr - 2) {
+        /* Split pair probably */
+        c = readb(sseg, addr - 3);
+        if (c == 0xA9) {
+            c = readb(sseg, addr - 1);
+            if (c == 0xA2 || c == 0xA0)
+                return 0;
+        }
+        /* Doesn't look like a split stub */
+    }
+
     /* Points to high byte so back pedal for little endian */
     addr -= 2;
     c = readb(sseg, addr);
