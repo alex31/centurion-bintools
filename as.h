@@ -2394,6 +2394,7 @@ typedef	uint16_t	VALUE;		/* For symbol values */
 #define TBLOCK	0x2B00			/* Block operations CPU6 only */
 #define TRANGE	0x2C00			/* Range CPU6 only */
 #define TREG2A8NS 0x2D00		/* Two reg byte, no short form */
+#define TMULDIV 0x2E00		/* CPU6 unsigned word multiply/divide */
 
 /*
  * Registers.

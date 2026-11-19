@@ -338,6 +338,75 @@ static SYM branch_bl = {
 	0,	"bl",		TREL8,		0x10
 };
 
+/* MUL/DIV operands: word register, literal, (address), or displacement(reg).
+   Unlike the older unary indexed forms, these instructions allow A as base. */
+static unsigned muldiv_operand(ADDR *value, ADDR *index)
+{
+	unsigned indirect = 0;
+	int c = getnb();
+	if (c == '(')
+		indirect = 1;
+	else
+		unget(c);
+	getaddr(value);
+	if (indirect) {
+		if (getnb() != ')') aerr(SYNTAX_ERROR);
+		if ((value->a_type & TMMODE) == TWR) {
+			*index = *value;
+			memset(value, 0, sizeof(*value));
+			value->a_type = TUSER;
+			return 3;
+		}
+		istuser(value);
+		return 2;
+	}
+	c = getnb();
+	if (c == '(') {
+		istuser(value);
+		getaddr(index);
+		if ((index->a_type & TMMODE) != TWR) aerr(WREGONLY);
+		if (getnb() != ')') aerr(SYNTAX_ERROR);
+		return 3;
+	}
+	unget(c);
+	if ((value->a_type & TMMODE) == TWR) return 0;
+	istuser(value);
+	return 1;
+}
+
+static void assemble_muldiv(unsigned opcode)
+{
+	ADDR first, second, index, dest;
+	unsigned kind, src, mode;
+	int c;
+	if (cpu_model < 6) aerr(BADCPU);
+	kind = muldiv_operand(&first, &index);
+	comma();
+	if (kind == 0) {
+		src = first.a_type & TMREG;
+		kind = muldiv_operand(&second, &index);
+		c = getnb();
+		if (c == ',') {
+			/* Explicit source, literal/direct operand, destination. */
+			if (kind != 1 && kind != 2) aerr(SYNTAX_ERROR);
+			getaddr(&dest);
+			if ((dest.a_type & TMMODE) != TWR) aerr(WREGONLY);
+			mode = (src << 4) | (dest.a_type & TMREG) | (kind == 1 ? 0x10 : 1);
+			outab(opcode); outab(mode); outraw(&second);
+			return;
+		}
+		unget(c);
+		if (kind != 0) aerr(WREGONLY);
+		outab(opcode); outab((src << 4) | (second.a_type & TMREG));
+		return;
+	}
+	getaddr(&dest);
+	if ((dest.a_type & TMMODE) != TWR) aerr(WREGONLY);
+	src = kind == 3 ? index.a_type & TMREG : dest.a_type & TMREG;
+	mode = (src << 4) | (dest.a_type & TMREG) | (kind == 1 ? 0x10 : kind == 2 ? 1 : 0x11);
+	outab(opcode); outab(mode); outraw(&first);
+}
+
 /*
  * Assemble one line.
  * The line in in "ib", the "ip"
@@ -829,6 +898,9 @@ reg2a:
 			aerr(REGONLY);
 		}
 		break;		
+	case TMULDIV:
+		assemble_muldiv(opcode);
+		break;
 	case TJUMP:
 		/* Sort of like load/store but the address generated ends up
 		   in PC not read from into a register */

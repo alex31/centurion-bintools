@@ -197,6 +197,9 @@ SYM	sym[] = {
 	{	0,	"bcpy",		TBLOCK,		0x4740	},
 	{	0,	"bcmp",		TBLOCK,		0x4780	},
 
+	{	0,	"mul",		TMULDIV,	0x77	},
+	{	0,	"div",		TMULDIV,	0x78	},
+
 	/* Move ("xfr") handled specially */
 	{	0,	"xfr",		TMOVE,		0x00	},
 	{	0,	"xfrb",		TMOVE,		0x00	},

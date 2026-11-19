@@ -977,12 +977,17 @@ static void record_reloc(struct object *o, unsigned high, unsigned size, unsigne
 	if (!relocf)
 		return;
 
-	if (ldmode != LD_FUZIX && !overlays)
+	if (ldmode != LD_FUZIX && ldmode != LD_ABSOLUTE && !overlays)
 		return;
 
 	/* Absolutes are .. absolute */
 	if (seg == ABSOLUTE)
 		return;
+	/* CBIN fixups add a 16-bit relocation base to a full big-endian
+	 * word. Do not silently export relocations that it cannot represent. */
+	if (ldmode == LD_ABSOLUTE && !overlays &&
+	    (size != 2 || high || seg == ZP || !(o->oh->o_flags & OF_BIGENDIAN)))
+		error("absolute-image relocation is not a big-endian word");
 
 	/* ZP relocs are always low byte relocations */
 	if (seg == ZP) {

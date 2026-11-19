@@ -136,9 +136,14 @@ void expr1(ADDR *ap, int lpri, int paren)
 	int c2;
 	int opri;
 	ADDR right;
+	char *operator_start;
 
 	expr2(ap);
-	while ((c=getnb())=='+' || c=='-' || c=='*' || c=='/' || c=='&' ||c=='|') {
+	for (;;) {
+		operator_start = ip;
+		c = getnb();
+		if (c != '+' && c != '-' && c != '*' && c != '/' && c != '&' && c != '|')
+			break;
 		c2 = getnb();
 		/* Pass unary postifx back to the caller as some assembly
 		    syntaxes require we can handle stuff like (X-) for
@@ -203,7 +208,8 @@ void expr1(ADDR *ap, int lpri, int paren)
 			break;
 		}
 	}
-	unget(c);
+	/* Lookahead may have skipped whitespace after the operator. */
+	ip = operator_start;
 }
 
 /*
